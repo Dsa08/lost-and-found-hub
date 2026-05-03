@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "935039779697",
+    "project_id": "lnf-hub-dsa",
+    "storage_bucket": "lnf-hub-dsa.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:935039779697:android:0362e3cc227e80f284acd0",
+        "android_client_info": {
+          "package_name": "com.example.lost_and_found_hub"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFlQUaMej1yuDJSN-7xn2EzhmchYi703Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

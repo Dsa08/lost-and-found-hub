@@ -1,0 +1,301 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:timeago/timeago.dart' as timeago;
+import '../../core/constants/app_colors.dart';
+import '../../models/item_model.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/items_provider.dart';
+import '../../widgets/bounty_badge.dart';
+
+class ItemDetailScreen extends ConsumerStatefulWidget {
+  final String itemId;
+  const ItemDetailScreen({super.key, required this.itemId});
+
+  @override
+  ConsumerState<ItemDetailScreen> createState() => _ItemDetailScreenState();
+}
+
+class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
+  bool _showClaimForm = false;
+  final _answerCtrl = TextEditingController();
+  bool _isSubmitting = false;
+
+  @override
+  void dispose() {
+    _answerCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submitClaim(ItemModel item) async {
+    if (_answerCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Jawaban tidak boleh kosong'), backgroundColor: AppColors.error),
+      );
+      return;
+    }
+    setState(() => _isSubmitting = true);
+    try {
+      final user = ref.read(currentUserProvider).valueOrNull;
+      if (user == null) return;
+      await ref.read(itemsRepositoryProvider).submitClaim(
+        itemId: item.itemId,
+        finderId: user.uid,
+        securityAnswer: _answerCtrl.text.trim(),
+      );
+      if (mounted) {
+        setState(() => _showClaimForm = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Klaim berhasil dikirim! Tunggu persetujuan pemilik.'),
+            backgroundColor: AppColors.statusActive,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', '')), backgroundColor: AppColors.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final itemAsync = ref.watch(itemByIdProvider(widget.itemId));
+    final currentUser = ref.watch(currentUserProvider).valueOrNull;
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: itemAsync.when(
+        data: (item) {
+          if (item == null) {
+            return const Center(child: Text('Item tidak ditemukan'));
+          }
+          final isOwner = currentUser?.uid == item.ownerId;
+
+          return CustomScrollView(
+            slivers: [
+              // ── App Bar dengan foto ──
+              SliverAppBar(
+                expandedHeight: 260,
+                pinned: true,
+                backgroundColor: AppColors.surface,
+                leading: IconButton(
+                  icon: const CircleAvatar(
+                    backgroundColor: Colors.white,
+                    child: Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 20),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                ),
+                flexibleSpace: FlexibleSpaceBar(
+                  background: item.fotoUrls.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: item.fotoUrls.first,
+                          fit: BoxFit.cover,
+                        )
+                      : Container(
+                          color: AppColors.surfaceVariant,
+                          child: const Icon(Icons.image_not_supported_outlined, size: 60, color: AppColors.textHint),
+                        ),
+                ),
+              ),
+
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Badges row
+                      Row(
+                        children: [
+                          StatusBadge(status: item.tipeLaporan == TipeLaporan.lost ? 'lost' : 'found'),
+                          const SizedBox(width: 8),
+                          StatusBadge(status: item.status.name),
+                          const Spacer(),
+                          BountyBadge(poin: item.nominalBounty, large: true),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Judul
+                      Text(item.judul, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                      const SizedBox(height: 6),
+
+                      // Waktu
+                      Text(
+                        'Dilaporkan ${timeago.format(item.createdAt, locale: 'id')}',
+                        style: const TextStyle(fontSize: 13, color: AppColors.textHint),
+                      ),
+
+                      const SizedBox(height: 20),
+                      const Divider(),
+                      const SizedBox(height: 16),
+
+                      // Deskripsi
+                      const Text('Deskripsi', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                      const SizedBox(height: 8),
+                      Text(item.deskripsi, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.6)),
+
+                      const SizedBox(height: 20),
+
+                      // Lokasi
+                      _InfoTile(
+                        icon: Icons.location_on_rounded,
+                        iconColor: AppColors.statusLost,
+                        title: 'Lokasi',
+                        value: item.lokasi.namaLokasi,
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Kategori
+                      _InfoTile(
+                        icon: Icons.category_rounded,
+                        iconColor: AppColors.primary,
+                        title: 'Kategori',
+                        value: item.kategori.name[0].toUpperCase() + item.kategori.name.substring(1),
+                      ),
+
+                      // Security Question (hanya jika ada dan bukan owner)
+                      if (item.securityQuestion != null && !isOwner) ...[
+                        const SizedBox(height: 20),
+                        const Divider(),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryLight,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Row(
+                                children: [
+                                  Icon(Icons.security_rounded, color: AppColors.primary, size: 18),
+                                  SizedBox(width: 8),
+                                  Text('Pertanyaan Keamanan', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.primary, fontSize: 14)),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                item.securityQuestion!,
+                                style: const TextStyle(fontSize: 14, color: AppColors.textPrimary, fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      // Claim Form
+                      if (_showClaimForm && !isOwner) ...[
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _answerCtrl,
+                          decoration: InputDecoration(
+                            labelText: 'Jawaban kamu',
+                            hintText: 'Masukkan jawabanmu dengan teliti',
+                            suffixIcon: _isSubmitting
+                                ? const Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                                  )
+                                : null,
+                          ),
+                          maxLines: 2,
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: () => setState(() => _showClaimForm = false),
+                                style: OutlinedButton.styleFrom(foregroundColor: AppColors.textSecondary),
+                                child: const Text('Batal'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              flex: 2,
+                              child: ElevatedButton(
+                                onPressed: _isSubmitting ? null : () => _submitClaim(item),
+                                child: const Text('Kirim Klaim'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+
+                      const SizedBox(height: 100),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        error: (e, _) => Center(child: Text('$e')),
+      ),
+      bottomNavigationBar: itemAsync.when(
+        data: (item) {
+          if (item == null) return null;
+          final isOwner = currentUser?.uid == item.ownerId;
+          if (isOwner || item.status != ItemStatus.active) return null;
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: ElevatedButton.icon(
+                onPressed: () => setState(() => _showClaimForm = true),
+                icon: const Icon(Icons.volunteer_activism_rounded),
+                label: const Text('Saya Menemukan Ini!'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.statusFound,
+                  minimumSize: const Size(double.infinity, 52),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ),
+          );
+        },
+        loading: () => null,
+        error: (_, __) => null,
+      ),
+    );
+  }
+}
+
+class _InfoTile extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title, value;
+  const _InfoTile({required this.icon, required this.iconColor, required this.title, required this.value});
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
+        child: Icon(icon, color: iconColor, size: 18),
+      ),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: const TextStyle(fontSize: 12, color: AppColors.textHint)),
+            Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+          ],
+        ),
+      ),
+    ],
+  );
+}
