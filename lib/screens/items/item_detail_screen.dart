@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/firestore_paths.dart';
 import '../../models/item_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/items_provider.dart';
+import '../../services/pdf_service.dart';
 import '../../widgets/bounty_badge.dart';
+import '../video/video_player_screen.dart';
 
 class ItemDetailScreen extends ConsumerStatefulWidget {
   final String itemId;
@@ -20,6 +24,7 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
   bool _showClaimForm = false;
   final _answerCtrl = TextEditingController();
   bool _isSubmitting = false;
+  bool _isGeneratingPdf = false;
 
   @override
   void dispose() {
@@ -61,6 +66,42 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _downloadPdf(ItemModel item) async {
+    setState(() => _isGeneratingPdf = true);
+    try {
+      // Ambil nama owner dari Firestore
+      final ownerDoc = await FirebaseFirestore.instance
+          .collection(FirestorePaths.users)
+          .doc(item.ownerId)
+          .get();
+      final namaOwner = ownerDoc.data()?['nama'] ?? 'Tidak diketahui';
+
+      // Ambil nama finder jika ada
+      String namaFinder = '-';
+      if (item.activeClaimId != null) {
+        final finderDoc = await FirebaseFirestore.instance
+            .collection(FirestorePaths.users)
+            .doc(item.activeClaimId)
+            .get();
+        namaFinder = finderDoc.data()?['nama'] ?? '-';
+      }
+
+      await PdfService.generateSertifikat(
+        item: item,
+        namaOwner: namaOwner,
+        namaFinder: namaFinder,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal generate PDF: $e'), backgroundColor: AppColors.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isGeneratingPdf = false);
     }
   }
 
@@ -111,7 +152,7 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Badges row
+                      // Badges
                       Row(
                         children: [
                           StatusBadge(status: item.tipeLaporan == TipeLaporan.lost ? 'lost' : 'found'),
@@ -126,8 +167,6 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
                       // Judul
                       Text(item.judul, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
                       const SizedBox(height: 6),
-
-                      // Waktu
                       Text(
                         'Dilaporkan ${timeago.format(item.createdAt, locale: 'id')}',
                         style: const TextStyle(fontSize: 13, color: AppColors.textHint),
@@ -161,7 +200,72 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
                         value: item.kategori.name[0].toUpperCase() + item.kategori.name.substring(1),
                       ),
 
-                      // Security Question (hanya jika ada dan bukan owner)
+                      // ── VIDEO BUKTI ──────────────────────────────────────
+                      if (item.hasVideo) ...[
+                        const SizedBox(height: 20),
+                        const Divider(),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Video Bukti',
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                        ),
+                        const SizedBox(height: 10),
+                        VideoThumbnailWidget(
+                          videoUrl: item.videoUrl!,
+                          title: 'Video Bukti — ${item.judul}',
+                        ),
+                      ],
+
+                      // ── DOWNLOAD PDF (hanya jika Resolved) ──────────────
+                      if (item.isResolved) ...[
+                        const SizedBox(height: 20),
+                        const Divider(),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.statusActive.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.statusActive.withValues(alpha: 0.3)),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.check_circle_rounded, color: AppColors.statusActive, size: 28),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Barang Berhasil Dikembalikan!', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.statusActive)),
+                                    Text('Download sertifikat serah terima sebagai bukti resmi.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _isGeneratingPdf ? null : () => _downloadPdf(item),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.statusActive,
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            icon: _isGeneratingPdf
+                                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : const Icon(Icons.download_rounded, color: Colors.white),
+                            label: Text(
+                              _isGeneratingPdf ? 'Membuat PDF...' : 'Download Sertifikat PDF',
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      // ── Security Question ──
                       if (item.securityQuestion != null && !isOwner) ...[
                         const SizedBox(height: 20),
                         const Divider(),
@@ -184,10 +288,7 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
                                 ],
                               ),
                               const SizedBox(height: 8),
-                              Text(
-                                item.securityQuestion!,
-                                style: const TextStyle(fontSize: 14, color: AppColors.textPrimary, fontWeight: FontWeight.w500),
-                              ),
+                              Text(item.securityQuestion!, style: const TextStyle(fontSize: 14, color: AppColors.textPrimary, fontWeight: FontWeight.w500)),
                             ],
                           ),
                         ),
@@ -202,10 +303,7 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
                             labelText: 'Jawaban kamu',
                             hintText: 'Masukkan jawabanmu dengan teliti',
                             suffixIcon: _isSubmitting
-                                ? const Padding(
-                                    padding: EdgeInsets.all(12),
-                                    child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-                                  )
+                                ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
                                 : null,
                           ),
                           maxLines: 2,

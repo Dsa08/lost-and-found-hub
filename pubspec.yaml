@@ -1,4 +1,4 @@
-name: lost_and_found_hub
+name: lost_found_hub
 description: Lost & Found Hub - Aplikasi temuan barang dengan sistem bounty dan guild.
 publish_to: 'none'
 version: 1.0.0+1
@@ -14,9 +14,11 @@ dependencies:
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.0
   cloud_firestore: ^5.4.0
-  firebase_storage: ^12.3.0
   firebase_messaging: ^15.1.0
   cloud_functions: ^5.1.0
+
+  # Cloudinary (ganti Firebase Storage)
+  http: ^1.2.0
 
   # State Management
   flutter_riverpod: ^2.5.0
@@ -47,6 +49,15 @@ dependencies:
   freezed_annotation: ^2.4.0
   json_annotation: ^4.9.0
 
+  # PDF
+  pdf: ^3.11.0
+  printing: ^5.13.0
+  path_provider: ^2.1.0
+
+  # Video
+  video_player: ^2.9.0
+  chewie: ^1.8.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -58,3 +69,16 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+        - asset: assets/fonts/Poppins-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700

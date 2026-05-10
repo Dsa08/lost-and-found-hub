@@ -37,6 +37,7 @@ class ItemModel {
   final String deskripsi;
   final KategoriBarang kategori;
   final List<String> fotoUrls;
+  final String? videoUrl;        // ← BARU: URL video bukti
   final ItemLocation lokasi;
   final DateTime tanggalKejadian;
   final DateTime createdAt;
@@ -58,6 +59,7 @@ class ItemModel {
     required this.deskripsi,
     required this.kategori,
     required this.fotoUrls,
+    this.videoUrl,
     required this.lokasi,
     required this.tanggalKejadian,
     required this.createdAt,
@@ -75,6 +77,7 @@ class ItemModel {
   bool get hasBounty => nominalBounty > 0;
   bool get isLost => tipeLaporan == TipeLaporan.lost;
   bool get isResolved => status == ItemStatus.resolved;
+  bool get hasVideo => videoUrl != null && videoUrl!.isNotEmpty;
 
   factory ItemModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -86,6 +89,7 @@ class ItemModel {
       deskripsi: data['deskripsi'] ?? '',
       kategori: _parseKategori(data['kategori']),
       fotoUrls: List<String>.from(data['foto_urls'] ?? []),
+      videoUrl: data['video_url'],
       lokasi: ItemLocation.fromMap(data['lokasi'] ?? {}),
       tanggalKejadian: (data['tanggal_kejadian'] as Timestamp?)?.toDate() ?? DateTime.now(),
       createdAt: (data['created_at'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -109,6 +113,7 @@ class ItemModel {
       'deskripsi': deskripsi,
       'kategori': kategori.name,
       'foto_urls': fotoUrls,
+      'video_url': videoUrl,
       'lokasi': lokasi.toMap(),
       'tanggal_kejadian': Timestamp.fromDate(tanggalKejadian),
       'created_at': FieldValue.serverTimestamp(),
@@ -118,7 +123,7 @@ class ItemModel {
       'escrow_status': escrowStatus.name,
       'security_question': securityQuestion,
       'security_answer_hash': securityAnswerHash,
-      'is_approved': false,  // selalu false saat baru dibuat, menunggu moderasi
+      'is_approved': false,
       'active_claim_id': null,
       'view_count': 0,
     };

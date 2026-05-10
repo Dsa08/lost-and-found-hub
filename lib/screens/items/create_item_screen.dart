@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import '../../core/constants/app_colors.dart';
 import '../../core/utils/security_utils.dart';
@@ -9,6 +8,7 @@ import '../../models/item_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/items_provider.dart';
 import '../../repositories/wallet_repository.dart';
+import '../../services/cloudinary_service.dart';
 
 class CreateItemScreen extends ConsumerStatefulWidget {
   const CreateItemScreen({super.key});
@@ -29,7 +29,9 @@ class _CreateItemScreenState extends ConsumerState<CreateItemScreen> {
   TipeLaporan _tipe = TipeLaporan.lost;
   KategoriBarang _kategori = KategoriBarang.lainnya;
   final List<File> _photos = [];
+  File? _videoFile;
   bool _isLoading = false;
+  String _loadingMessage = 'Menyimpan laporan...';
   int _currentStep = 0;
 
   @override
@@ -58,13 +60,23 @@ class _CreateItemScreenState extends ConsumerState<CreateItemScreen> {
   }
 
   Future<List<String>> _uploadPhotos(String itemId) async {
-    final urls = <String>[];
-    for (int i = 0; i < _photos.length; i++) {
-      final ref = FirebaseStorage.instance.ref('items/$itemId/photo_$i.jpg');
-      await ref.putFile(_photos[i]);
-      urls.add(await ref.getDownloadURL());
+    return await CloudinaryService.uploadImages(_photos, itemId);
+  }
+
+  Future<String?> _uploadVideo(String itemId) async {
+    if (_videoFile == null) return null;
+    return await CloudinaryService.uploadVideo(_videoFile!, itemId);
+  }
+
+  Future<void> _pickVideo() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickVideo(
+      source: ImageSource.gallery,
+      maxDuration: const Duration(seconds: 60),
+    );
+    if (picked != null) {
+      setState(() => _videoFile = File(picked.path));
     }
-    return urls;
   }
 
   Future<void> _submit() async {
@@ -77,7 +89,7 @@ class _CreateItemScreenState extends ConsumerState<CreateItemScreen> {
 
       final bounty = int.tryParse(_bountyCtrl.text) ?? 0;
 
-      // Buat item dulu (tanpa foto) untuk dapat ID
+      // Buat item dulu (tanpa foto/video) untuk dapat ID
       final tempItem = ItemModel(
         itemId: '',
         ownerId: user.uid,
@@ -85,6 +97,7 @@ class _CreateItemScreenState extends ConsumerState<CreateItemScreen> {
         deskripsi: _deskripsiCtrl.text.trim(),
         kategori: _kategori,
         fotoUrls: [],
+        videoUrl: null,
         lokasi: ItemLocation(latitude: 0, longitude: 0, namaLokasi: _lokasiCtrl.text.trim()),
         tanggalKejadian: DateTime.now(),
         createdAt: DateTime.now(),
@@ -98,13 +111,26 @@ class _CreateItemScreenState extends ConsumerState<CreateItemScreen> {
 
       final itemId = await ref.read(itemsRepositoryProvider).createItem(tempItem);
 
-      // Upload foto & update URL
-      if (_photos.isNotEmpty) {
-        final urls = await _uploadPhotos(itemId);
-        await ref.read(firestoreProvider)
-            .collection('items')
-            .doc(itemId)
-            .update({'foto_urls': urls});
+      // Upload foto & video ke Cloudinary — hanya jika ada file
+      if (_photos.isNotEmpty || _videoFile != null) {
+        final Map<String, dynamic> updates = {};
+        try {
+          if (_photos.isNotEmpty) {
+            setState(() => _loadingMessage = 'Mengupload foto ke Cloudinary...');
+            updates['foto_urls'] = await _uploadPhotos(itemId);
+          }
+          if (_videoFile != null) {
+            setState(() => _loadingMessage = 'Mengupload video (mungkin butuh waktu)...');
+            updates['video_url'] = await _uploadVideo(itemId);
+          }
+          setState(() => _loadingMessage = 'Menyimpan data...');
+          await ref.read(firestoreProvider)
+              .collection('items')
+              .doc(itemId)
+              .update(updates);
+        } catch (storageError) {
+          debugPrint('Upload Cloudinary gagal: $storageError');
+        }
       }
 
       // Lock escrow jika ada bounty
@@ -157,31 +183,56 @@ class _CreateItemScreenState extends ConsumerState<CreateItemScreen> {
         child: Stepper(
           currentStep: _currentStep,
           onStepContinue: () {
-            if (_currentStep < 2) setState(() => _currentStep++);
-            else _submit();
+            if (_currentStep < 2) {
+              setState(() => _currentStep++);
+            } else {
+              _submit();
+            }
           },
           onStepCancel: () {
-            if (_currentStep > 0) setState(() => _currentStep--);
+            if (_currentStep > 0) {
+              setState(() => _currentStep--);
+            }
           },
           controlsBuilder: (context, details) => Padding(
             padding: const EdgeInsets.only(top: 16),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : details.onStepContinue,
-                    child: _isLoading
-                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : Text(_currentStep == 2 ? 'Kirim Laporan' : 'Lanjut'),
+                // Loading message saat upload
+                if (_isLoading)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(
+                          width: 14, height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(_loadingMessage, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                      ],
+                    ),
                   ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : details.onStepContinue,
+                        child: _isLoading
+                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : Text(_currentStep == 2 ? 'Kirim Laporan' : 'Lanjut'),
+                      ),
+                    ),
+                    if (_currentStep > 0) ...[
+                      const SizedBox(width: 12),
+                      OutlinedButton(
+                        onPressed: _isLoading ? null : details.onStepCancel,
+                        child: const Text('Kembali'),
+                      ),
+                    ],
+                  ],
                 ),
-                if (_currentStep > 0) ...[
-                  const SizedBox(width: 12),
-                  OutlinedButton(
-                    onPressed: details.onStepCancel,
-                    child: const Text('Kembali'),
-                  ),
-                ],
               ],
             ),
           ),
@@ -294,6 +345,58 @@ class _CreateItemScreenState extends ConsumerState<CreateItemScreen> {
                         ),
                     ],
                   ),
+                  const SizedBox(height: 20),
+
+                  // ── VIDEO BUKTI ──
+                  const Text('Video Bukti (Opsional, max 60 detik)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: AppColors.textPrimary)),
+                  const SizedBox(height: 8),
+                  _videoFile == null
+                      ? GestureDetector(
+                          onTap: _pickVideo,
+                          child: Container(
+                            width: double.infinity,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceVariant,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: const Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.videocam_outlined, color: AppColors.textHint, size: 28),
+                                SizedBox(height: 4),
+                                Text('Tap untuk pilih video', style: TextStyle(fontSize: 12, color: AppColors.textHint)),
+                              ],
+                            ),
+                          ),
+                        )
+                      : Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryLight,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.videocam_rounded, color: AppColors.primary, size: 24),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  _videoFile!.path.split('/').last,
+                                  style: const TextStyle(fontSize: 13, color: AppColors.primary, fontWeight: FontWeight.w500),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close, color: AppColors.error, size: 18),
+                                onPressed: () => setState(() => _videoFile = null),
+                              ),
+                            ],
+                          ),
+                        ),
+
                   const SizedBox(height: 20),
 
                   Container(
