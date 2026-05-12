@@ -1,0 +1,244 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/firestore_paths.dart';
+import '../../../providers/admin_provider.dart';
+
+class ModerationScreen extends ConsumerWidget {
+  const ModerationScreen({super.key});
+
+  Future<void> _approveItem(BuildContext context, String itemId, String uid) async {
+    await FirebaseFirestore.instance
+        .collection(FirestorePaths.items)
+        .doc(itemId)
+        .update({
+      'is_approved': true,
+      'status': 'active',
+      'admin_id': uid,
+      'approved_at': FieldValue.serverTimestamp(),
+    });
+
+    // Update stats user
+    await FirebaseFirestore.instance
+        .collection(FirestorePaths.users)
+        .doc(uid)
+        .update({'stats.total_reports': FieldValue.increment(1)});
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ Postingan diapprove!'), backgroundColor: AppColors.statusActive, behavior: SnackBarBehavior.floating),
+      );
+    }
+  }
+
+  Future<void> _rejectItem(BuildContext context, String itemId, String ownerId) async {
+    // Tampilkan dialog alasan
+    final reasonCtrl = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Alasan Penolakan', style: TextStyle(fontWeight: FontWeight.w700)),
+        content: TextField(
+          controller: reasonCtrl,
+          maxLines: 3,
+          decoration: const InputDecoration(hintText: 'Tuliskan alasan penolakan...'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Batal')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, reasonCtrl.text),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Tolak'),
+          ),
+        ],
+      ),
+    );
+
+    if (reason == null) return;
+
+    await FirebaseFirestore.instance
+        .collection(FirestorePaths.items)
+        .doc(itemId)
+        .update({
+      'status': 'expired',
+      'reject_reason': reason,
+    });
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('❌ Postingan ditolak'), backgroundColor: AppColors.error, behavior: SnackBarBehavior.floating),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pendingAsync = ref.watch(pendingItemsProvider);
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        title: const Text('Moderasi Postingan'),
+        backgroundColor: const Color(0xFF1A1A2E),
+        foregroundColor: Colors.white,
+      ),
+      body: pendingAsync.when(
+        data: (snapshot) {
+          if (snapshot.docs.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.check_circle_outline_rounded, size: 64, color: AppColors.statusActive),
+                  SizedBox(height: 12),
+                  Text('Semua postingan sudah dimoderasi!', style: TextStyle(color: AppColors.textSecondary, fontSize: 15)),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: snapshot.docs.length,
+            itemBuilder: (ctx, i) {
+              final doc = snapshot.docs[i];
+              final data = doc.data();
+              final fotoUrls = List<String>.from(data['foto_urls'] ?? []);
+              final ownerId = data['owner_id'] ?? '';
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 10)],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Foto
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                      child: fotoUrls.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: fotoUrls.first,
+                              height: 150,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                            )
+                          : Container(
+                              height: 100,
+                              color: AppColors.surfaceVariant,
+                              child: const Center(child: Icon(Icons.image_not_supported_outlined, color: AppColors.textHint)),
+                            ),
+                    ),
+
+                    Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Tipe badge
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: data['tipe_laporan'] == 'Lost'
+                                      ? AppColors.statusLost.withValues(alpha: 0.12)
+                                      : AppColors.statusFound.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  data['tipe_laporan'] == 'Lost' ? 'HILANG' : 'DITEMUKAN',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: data['tipe_laporan'] == 'Lost' ? AppColors.statusLost : AppColors.statusFound,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(data['kategori'] ?? '-', style: const TextStyle(fontSize: 12, color: AppColors.textHint)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+
+                          Text(
+                            data['judul'] ?? 'Tanpa Judul',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            data['deskripsi'] ?? '',
+                            style: const TextStyle(fontSize: 13, color: AppColors.textSecondary),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 8),
+
+                          // Info tambahan
+                          Row(
+                            children: [
+                              const Icon(Icons.location_on_outlined, size: 13, color: AppColors.textHint),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  (data['lokasi'] as Map?)?['nama_lokasi'] ?? '-',
+                                  style: const TextStyle(fontSize: 12, color: AppColors.textHint),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if ((data['nominal_bounty'] ?? 0) > 0) ...[
+                                const Icon(Icons.star_rounded, size: 13, color: AppColors.bounty),
+                                const SizedBox(width: 4),
+                                Text('${data['nominal_bounty']} poin', style: const TextStyle(fontSize: 12, color: AppColors.bounty, fontWeight: FontWeight.w600)),
+                              ],
+                            ],
+                          ),
+
+                          const SizedBox(height: 14),
+                          const Divider(height: 1),
+                          const SizedBox(height: 12),
+
+                          // Action Buttons
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  onPressed: () => _rejectItem(context, doc.id, ownerId),
+                                  icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.error),
+                                  label: const Text('Tolak', style: TextStyle(color: AppColors.error)),
+                                  style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.error)),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                flex: 2,
+                                child: ElevatedButton.icon(
+                                  onPressed: () => _approveItem(context, doc.id, ownerId),
+                                  icon: const Icon(Icons.check_rounded, size: 16),
+                                  label: const Text('Approve'),
+                                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.statusActive),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+        error: (e, _) => Center(child: Text('$e')),
+      ),
+    );
+  }
+}

@@ -42,7 +42,7 @@ class PdfService {
                     pw.SizedBox(height: 4),
                     pw.Text(
                       'Lost & Found Hub',
-                      style: pw.TextStyle(
+                      style: const pw.TextStyle(
                         fontSize: 13,
                         color: PdfColors.blue100,
                       ),
@@ -118,11 +118,11 @@ class PdfService {
                 children: [
                   pw.Text(
                     'Dokumen ini digenerate otomatis oleh Lost & Found Hub',
-                    style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+                    style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
                   ),
                   pw.Text(
                     _formatDate(DateTime.now()),
-                    style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+                    style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
                   ),
                 ],
               ),
@@ -175,10 +175,10 @@ class PdfService {
             width: 160,
             child: pw.Text(
               label,
-              style: pw.TextStyle(fontSize: 11, color: PdfColors.grey700),
+              style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700),
             ),
           ),
-          pw.Text(': ', style: pw.TextStyle(fontSize: 11)),
+          pw.Text(': ', style: const pw.TextStyle(fontSize: 11)),
           pw.Expanded(
             child: pw.Text(
               value,

@@ -11,6 +11,9 @@ import '../../providers/items_provider.dart';
 import '../../services/pdf_service.dart';
 import '../../widgets/bounty_badge.dart';
 import '../video/video_player_screen.dart';
+import '../chat/chat_screen.dart';
+import '../qr/qr_screen.dart';
+import 'claim_review_screen.dart';
 
 class ItemDetailScreen extends ConsumerStatefulWidget {
   final String itemId;
@@ -152,6 +155,35 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Banner pending moderasi
+                      if (!item.isApproved && item.status == ItemStatus.pendingApproval) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppColors.statusPending.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.statusPending.withValues(alpha: 0.4)),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.pending_actions_rounded, color: AppColors.statusPending, size: 20),
+                              SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Menunggu Persetujuan Admin', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.statusPending)),
+                                    Text('Laporan akan tampil di dashboard setelah diapprove admin.', style: TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+
                       // Badges
                       Row(
                         children: [
@@ -345,22 +377,153 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
         data: (item) {
           if (item == null) return null;
           final isOwner = currentUser?.uid == item.ownerId;
-          if (isOwner || item.status != ItemStatus.active) return null;
-          return SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: ElevatedButton.icon(
-                onPressed: () => setState(() => _showClaimForm = true),
-                icon: const Icon(Icons.volunteer_activism_rounded),
-                label: const Text('Saya Menemukan Ini!'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.statusFound,
-                  minimumSize: const Size(double.infinity, 52),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          final isFinder = item.activeClaimId == currentUser?.uid;
+
+          // ── OWNER ACTIONS ──────────────────────────────────────────────
+          if (isOwner) {
+            // Pending Meetup: owner bisa scan QR dan buka chat
+            if (item.status == ItemStatus.pendingMeetup) {
+              return SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            // Cari nama finder
+                            final doc = await FirebaseFirestore.instance
+                                .collection(FirestorePaths.users)
+                                .doc(item.activeClaimId)
+                                .get();
+                            final name = doc.data()?['nama'] ?? 'Finder';
+                            if (context.mounted) {
+                              Navigator.push(context, MaterialPageRoute(
+                                builder: (_) => ChatScreen(
+                                  item: item,
+                                  otherUserId: item.activeClaimId!,
+                                  otherUserName: name,
+                                ),
+                              ));
+                            }
+                          },
+                          icon: const Icon(Icons.chat_rounded, size: 18),
+                          label: const Text('Chat'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        flex: 2,
+                        child: ElevatedButton.icon(
+                          onPressed: () => Navigator.push(context,
+                            MaterialPageRoute(builder: (_) => QrScannerScreen(item: item))),
+                          icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
+                          label: const Text('Scan QR Finder'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            minimumSize: const Size(double.infinity, 52),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            // Active: owner bisa review klaim
+            if (item.status == ItemStatus.active) {
+              return SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => ClaimReviewScreen(item: item))),
+                    icon: const Icon(Icons.rate_review_rounded),
+                    label: const Text('Lihat Klaim Masuk'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.statusPending,
+                      minimumSize: const Size(double.infinity, 52),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                ),
+              );
+            }
+            return null;
+          }
+
+          // ── FINDER ACTIONS ─────────────────────────────────────────────
+          if (isFinder && item.status == ItemStatus.pendingMeetup) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () async {
+                          final doc = await FirebaseFirestore.instance
+                              .collection(FirestorePaths.users)
+                              .doc(item.ownerId)
+                              .get();
+                          final name = doc.data()?['nama'] ?? 'Owner';
+                          if (context.mounted) {
+                            Navigator.push(context, MaterialPageRoute(
+                              builder: (_) => ChatScreen(
+                                item: item,
+                                otherUserId: item.ownerId,
+                                otherUserName: name,
+                              ),
+                            ));
+                          }
+                        },
+                        icon: const Icon(Icons.chat_rounded, size: 18),
+                        label: const Text('Chat'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      flex: 2,
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => QrGeneratorScreen(item: item))),
+                        icon: const Icon(Icons.qr_code_rounded, size: 18),
+                        label: const Text('Generate QR'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.statusFound,
+                          minimumSize: const Size(double.infinity, 52),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          );
+            );
+          }
+
+          // ── PUBLIC: Tombol klaim (jika active dan bukan owner) ─────────
+          if (!isOwner && item.status == ItemStatus.active) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: ElevatedButton.icon(
+                  onPressed: () => setState(() => _showClaimForm = true),
+                  icon: const Icon(Icons.volunteer_activism_rounded),
+                  label: const Text('Saya Menemukan Ini!'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.statusFound,
+                    minimumSize: const Size(double.infinity, 52),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+            );
+          }
+
+          return null;
         },
         loading: () => null,
         error: (_, __) => null,

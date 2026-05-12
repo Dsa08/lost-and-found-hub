@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../dashboard/dashboard_screen.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -43,7 +44,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         nama: _namaCtrl.text.trim(),
         noHp: _noHpCtrl.text.trim(),
       );
-      // Berhasil → AuthGate otomatis redirect ke Dashboard
+
+      if (!mounted) return;
+      // Langsung navigasi ke Dashboard setelah register
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        (_) => false,
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

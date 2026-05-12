@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/constants/app_colors.dart';
 import '../../models/item_model.dart';
 import '../../providers/auth_provider.dart';
@@ -9,6 +10,7 @@ import '../../widgets/item_card.dart';
 import '../../widgets/category_filter.dart';
 import '../items/create_item_screen.dart';
 import '../items/item_detail_screen.dart';
+import '../items/my_items_screen.dart';
 import '../wallet/wallet_screen.dart';
 import '../guild/guild_screen.dart';
 import '../profile/profile_screen.dart';
@@ -26,7 +28,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   final List<Widget> _pages = const [
     _HomePage(),
     _SearchPage(),
-    SizedBox(),
+    SizedBox(), // FAB placeholder
+    MyItemsScreen(),
     WalletScreen(),
     GuildScreen(),
   ];
@@ -60,9 +63,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             children: [
               _NavItem(icon: Icons.home_rounded, label: 'Beranda', index: 0, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
               _NavItem(icon: Icons.search_rounded, label: 'Cari', index: 1, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
-              const SizedBox(width: 40),
-              _NavItem(icon: Icons.account_balance_wallet_rounded, label: 'Dompet', index: 3, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
-              _NavItem(icon: Icons.shield_rounded, label: 'Guild', index: 4, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
+              const SizedBox(width: 40), // FAB space
+              _NavItem(icon: Icons.list_alt_rounded, label: 'Laporan', index: 3, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
+              _NavItem(icon: Icons.account_balance_wallet_rounded, label: 'Dompet', index: 4, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
             ],
           ),
         ),
@@ -181,6 +184,44 @@ class _HomePage extends ConsumerWidget {
                 child: _StatsBanner(),
               ),
             ),
+
+            // ── Banner laporan pending milik user ──
+            if (user != null)
+              SliverToBoxAdapter(
+                child: StreamBuilder(
+                  stream: FirebaseFirestore.instance
+                      .collection('items')
+                      .where('owner_id', isEqualTo: user.uid)
+                      .where('is_approved', isEqualTo: false)
+                      .where('status', isEqualTo: 'pendingApproval')
+                      .snapshots(),
+                  builder: (ctx, snap) {
+                    final count = snap.data?.docs.length ?? 0;
+                    if (count == 0) return const SizedBox.shrink();
+                    return Container(
+                      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.statusPending.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.statusPending.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.pending_actions_rounded, color: AppColors.statusPending, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              '$count laporan menunggu persetujuan admin',
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.statusPending),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
 
             // ── Filter Toggle ──
             SliverToBoxAdapter(

@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/firestore_paths.dart';
 import '../../providers/auth_provider.dart';
+import '../dashboard/dashboard_screen.dart';
+import '../admin/admin_dashboard_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -32,6 +37,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await ref.read(authRepositoryProvider).login(
         email: _emailCtrl.text.trim(),
         password: _passwordCtrl.text,
+      );
+
+      if (!mounted) return;
+
+      // Cek apakah admin
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      final isAdmin = uid != null && (await FirebaseFirestore.instance
+          .collection(FirestorePaths.admins)
+          .doc(uid)
+          .get()).exists;
+
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => isAdmin
+              ? const AdminDashboardScreen()
+              : const DashboardScreen(),
+        ),
+        (_) => false,
       );
     } catch (e) {
       if (mounted) {
