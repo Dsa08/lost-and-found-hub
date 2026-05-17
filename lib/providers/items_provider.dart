@@ -17,13 +17,16 @@ class ItemFilter {
     this.showOnlyBounty = false,
   });
 
+  // Gunakan sentinel object agar null bisa di-pass dengan benar
+  static const _keep = Object();
+
   ItemFilter copyWith({
-    String? kategori,
-    TipeLaporan? tipe,
+    Object? kategori = _keep,
+    Object? tipe = _keep,
     bool? showOnlyBounty,
   }) => ItemFilter(
-    kategori: kategori ?? this.kategori,
-    tipe: tipe ?? this.tipe,
+    kategori: kategori == _keep ? this.kategori : kategori as String?,
+    tipe: tipe == _keep ? this.tipe : tipe as TipeLaporan?,
     showOnlyBounty: showOnlyBounty ?? this.showOnlyBounty,
   );
 }

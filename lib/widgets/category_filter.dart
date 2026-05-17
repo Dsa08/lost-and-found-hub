@@ -29,9 +29,16 @@ class CategoryFilter extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, i) {
           final cat = _categories[i];
-          final isSelected = selected == cat['key'];
+          final catKey = cat['key'] as String?;
+
+          // Fix: "Semua" aktif jika selected == null
+          // Kategori lain aktif jika selected == key-nya
+          final isSelected = catKey == null
+              ? selected == null
+              : selected == catKey;
+
           return GestureDetector(
-            onTap: () => onChanged(cat['key'] as String?),
+            onTap: () => onChanged(catKey),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -42,7 +49,11 @@ class CategoryFilter extends StatelessWidget {
                   color: isSelected ? AppColors.primary : AppColors.border,
                 ),
                 boxShadow: isSelected
-                    ? [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2))]
+                    ? [BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.3),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      )]
                     : [],
               ),
               child: Row(

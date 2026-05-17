@@ -45,6 +45,10 @@ class _CreateItemScreenState extends ConsumerState<CreateItemScreen> {
     super.dispose();
   }
 
+  // Batas ukuran file
+  static const int _maxPhotoSizeMB = 5;   // max 5 MB per foto
+  static const int _maxVideoSizeMB = 50;  // max 50 MB per video
+
   Future<void> _pickPhoto() async {
     if (_photos.length >= 3) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -53,10 +57,31 @@ class _CreateItemScreenState extends ConsumerState<CreateItemScreen> {
       return;
     }
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 75);
-    if (picked != null) {
-      setState(() => _photos.add(File(picked.path)));
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,        // kompresi otomatis ke 70% kualitas
+      maxWidth: 1280,          // resize max 1280px lebar
+      maxHeight: 1280,         // resize max 1280px tinggi
+    );
+    if (picked == null) return;
+
+    // Cek ukuran file setelah kompresi
+    final file = File(picked.path);
+    final sizeInMB = await file.length() / (1024 * 1024);
+    if (sizeInMB > _maxPhotoSizeMB) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Foto terlalu besar (${sizeInMB.toStringAsFixed(1)} MB). Maksimal ${_maxPhotoSizeMB} MB.'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
     }
+
+    setState(() => _photos.add(file));
   }
 
   Future<List<String>> _uploadPhotos(String itemId) async {
@@ -72,11 +97,40 @@ class _CreateItemScreenState extends ConsumerState<CreateItemScreen> {
     final picker = ImagePicker();
     final picked = await picker.pickVideo(
       source: ImageSource.gallery,
-      maxDuration: const Duration(seconds: 60),
+      maxDuration: const Duration(seconds: 60), // max 60 detik
     );
-    if (picked != null) {
-      setState(() => _videoFile = File(picked.path));
+    if (picked == null) return;
+
+    // Cek ukuran file video
+    final file = File(picked.path);
+    final sizeInMB = await file.length() / (1024 * 1024);
+
+    if (sizeInMB > _maxVideoSizeMB) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Video terlalu besar (${sizeInMB.toStringAsFixed(1)} MB). Maksimal ${_maxVideoSizeMB} MB.'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
     }
+
+    // Tampilkan info ukuran file
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Video dipilih: ${sizeInMB.toStringAsFixed(1)} MB'),
+          backgroundColor: AppColors.statusActive,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+
+    setState(() => _videoFile = file);
   }
 
   Future<void> _submit() async {
