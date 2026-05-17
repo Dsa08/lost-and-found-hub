@@ -72,7 +72,7 @@ class _CreateItemScreenState extends ConsumerState<CreateItemScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Foto terlalu besar (${sizeInMB.toStringAsFixed(1)} MB). Maksimal ${_maxPhotoSizeMB} MB.'),
+            content: Text('Foto terlalu besar (${sizeInMB.toStringAsFixed(1)} MB). Maksimal $_maxPhotoSizeMB MB.'),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),
@@ -109,7 +109,7 @@ class _CreateItemScreenState extends ConsumerState<CreateItemScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Video terlalu besar (${sizeInMB.toStringAsFixed(1)} MB). Maksimal ${_maxVideoSizeMB} MB.'),
+            content: Text('Video terlalu besar (${sizeInMB.toStringAsFixed(1)} MB). Maksimal $_maxVideoSizeMB MB.'),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),
