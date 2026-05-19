@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../providers/admin_provider.dart';
 import '../../../providers/app_stats_provider.dart';
+import '../../../providers/auth_provider.dart';
+import '../auth/login_screen.dart';
 import 'moderation_screen.dart';
 import 'user_management_screen.dart';
 import 'dispute_screen.dart';
@@ -46,9 +48,37 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   }
 }
 
-// ── Admin Home Page ──────────────────────────────────────────────────────────
+// ── Admin Home Page ───────────────────────────────────────────────────────────
 class _AdminHomePage extends ConsumerWidget {
   const _AdminHomePage();
+
+  Future<void> _logout(BuildContext context, WidgetRef ref) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Keluar?', style: TextStyle(fontWeight: FontWeight.w700)),
+        content: const Text('Kamu akan keluar dari admin panel.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Keluar'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await ref.read(authRepositoryProvider).logout();
+      if (context.mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          (_) => false,
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -56,6 +86,7 @@ class _AdminHomePage extends ConsumerWidget {
     final pendingAsync = ref.watch(pendingItemsProvider);
     final disputesAsync = ref.watch(allDisputesProvider);
     final usersAsync = ref.watch(allUsersProvider);
+    final user = ref.watch(currentUserProvider).valueOrNull;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -64,21 +95,28 @@ class _AdminHomePage extends ConsumerWidget {
         backgroundColor: const Color(0xFF1A1A2E),
         foregroundColor: Colors.white,
         centerTitle: true,
+        // ── Fix 1: Tambah tombol logout/profil di kanan atas ──
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.red.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.red.withValues(alpha: 0.5)),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.admin_panel_settings_rounded, color: Colors.red, size: 14),
-                SizedBox(width: 4),
-                Text('ADMIN', style: TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w800)),
-              ],
+          GestureDetector(
+            onTap: () => _logout(context, ref),
+            child: Container(
+              margin: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.red.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.red.withValues(alpha: 0.5)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.logout_rounded, color: Colors.red, size: 14),
+                  const SizedBox(width: 4),
+                  Text(
+                    user?.nama.split(' ').first ?? 'Admin',
+                    style: const TextStyle(color: Colors.red, fontSize: 11, fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -118,7 +156,7 @@ class _AdminHomePage extends ConsumerWidget {
                       ],
                     ),
                     loading: () => const CircularProgressIndicator(color: Colors.white),
-                    error: (_, __) => const Text('Error memuat statistik', style: TextStyle(color: Colors.white54)),
+                    error: (_, __) => const Text('Error', style: TextStyle(color: Colors.white54)),
                   ),
                 ],
               ),
@@ -135,7 +173,7 @@ class _AdminHomePage extends ConsumerWidget {
                   child: _AlertCard(
                     icon: Icons.pending_actions_rounded,
                     color: AppColors.statusPending,
-                    label: 'Menunggu Moderasi',
+                    label: 'Menunggu\nModerasi',
                     value: pendingAsync.when(
                       data: (s) => '${s.docs.length}',
                       loading: () => '...',
@@ -149,7 +187,7 @@ class _AdminHomePage extends ConsumerWidget {
                   child: _AlertCard(
                     icon: Icons.gavel_rounded,
                     color: AppColors.statusLost,
-                    label: 'Sengketa Aktif',
+                    label: 'Sengketa\nAktif',
                     value: disputesAsync.when(
                       data: (s) => '${s.docs.where((d) => d['status'] == 'Open').length}',
                       loading: () => '...',
@@ -163,7 +201,7 @@ class _AdminHomePage extends ConsumerWidget {
                   child: _AlertCard(
                     icon: Icons.people_rounded,
                     color: AppColors.primary,
-                    label: 'Total User',
+                    label: 'Total\nUser',
                     value: usersAsync.when(
                       data: (s) => '${s.docs.length}',
                       loading: () => '...',
@@ -179,41 +217,47 @@ class _AdminHomePage extends ConsumerWidget {
             const Text('Menu Admin', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
             const SizedBox(height: 12),
 
-            // ── Menu Grid ──
+            // ── Fix 2: Menu Grid dengan onTap yang berfungsi + fix overflow ──
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               crossAxisCount: 2,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: 1.4,
-              children: const [
+              childAspectRatio: 1.5, // Fix overflow dengan ratio lebih besar
+              children: [
                 _MenuCard(
                   icon: Icons.pending_actions_rounded,
-                  label: 'Moderasi\nPostingan',
+                  label: 'Moderasi',
                   color: AppColors.statusPending,
-                  description: 'Approve/reject laporan baru',
+                  description: 'Approve/reject laporan',
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ModerationScreen())),
                 ),
                 _MenuCard(
                   icon: Icons.people_rounded,
-                  label: 'Kelola\nUser',
+                  label: 'Kelola User',
                   color: AppColors.primary,
-                  description: 'Lihat & edit data pengguna',
+                  description: 'Lihat & edit pengguna',
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UserManagementScreen())),
                 ),
                 _MenuCard(
                   icon: Icons.gavel_rounded,
-                  label: 'Resolusi\nSengketa',
+                  label: 'Sengketa',
                   color: AppColors.statusLost,
-                  description: 'Handle dispute owner-finder',
+                  description: 'Handle dispute',
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DisputeScreen())),
                 ),
                 _MenuCard(
                   icon: Icons.receipt_long_rounded,
-                  label: 'Log\nTransaksi',
+                  label: 'Log Transaksi',
                   color: AppColors.statusActive,
-                  description: 'Riwayat perpindahan poin',
+                  description: 'Riwayat poin',
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransactionLogScreen())),
                 ),
               ],
             ),
+
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -247,51 +291,73 @@ class _AlertCard extends StatelessWidget {
   Widget build(BuildContext context) => GestureDetector(
     onTap: onTap,
     child: Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 6),
-          Text(value, style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.w800)),
-          Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textSecondary), textAlign: TextAlign.center),
+          Icon(icon, color: color, size: 22),
+          const SizedBox(height: 4),
+          Text(value, style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.w800)),
+          Text(label, style: const TextStyle(fontSize: 9, color: AppColors.textSecondary), textAlign: TextAlign.center),
         ],
       ),
     ),
   );
 }
 
+// Fix 3: _MenuCard sekarang punya onTap + tidak overflow
 class _MenuCard extends StatelessWidget {
   final IconData icon;
   final String label, description;
   final Color color;
-  const _MenuCard({required this.icon, required this.label, required this.color, required this.description});
+  final VoidCallback onTap;
+  const _MenuCard({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.description,
+    required this.onTap,
+  });
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(14),
-      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8)],
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
-          child: Icon(icon, color: color, size: 20),
-        ),
-        const Spacer(),
-        Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-        const SizedBox(height: 2),
-        Text(description, style: const TextStyle(fontSize: 10, color: AppColors.textHint)),
-      ],
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8)],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                Text(description, style: const TextStyle(fontSize: 10, color: AppColors.textHint), overflow: TextOverflow.ellipsis),
+              ],
+            ),
+          ),
+          Icon(Icons.chevron_right_rounded, color: color.withValues(alpha: 0.5), size: 18),
+        ],
+      ),
     ),
   );
 }
