@@ -60,7 +60,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               value: role,
               groupValue: selected,
               activeColor: AppColors.primary,
-              onChanged: (v) => setState(() => selected = v!),
+              onChanged: (v) { if (v != null) setState(() => selected = v); },
             )).toList(),
           ),
         ),
@@ -212,7 +212,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       if (isBlocked)
                         _StatusChip(label: 'DIBLOKIR', color: AppColors.error)
                       else if (stillSuspended)
-                        _StatusChip(label: 'DISUSPEND s/d ${suspendedUntil?.day}/${suspendedUntil.month}', color: AppColors.statusPending)
+                        _StatusChip(label: 'DISUSPEND s/d ${suspendedUntil!.day}/${suspendedUntil.month}', color: AppColors.statusPending)
                       else
                         _StatusChip(label: data['role']?.toString().toUpperCase() ?? 'USER', color: AppColors.statusActive),
                     ],
