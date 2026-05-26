@@ -122,8 +122,11 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
           }
           final isOwner = currentUser?.uid == item.ownerId;
 
-          return CustomScrollView(
-            slivers: [
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: CustomScrollView(
+                slivers: [
               // ── App Bar dengan foto ──
               SliverAppBar(
                 expandedHeight: 260,
@@ -368,6 +371,8 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
                 ),
               ),
             ],
+          ),
+            ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
@@ -383,8 +388,11 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
           if (isOwner) {
             // Pending Meetup: owner bisa scan QR dan buka chat
             if (item.status == ItemStatus.pendingMeetup) {
-              return SafeArea(
-                child: Padding(
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: SafeArea(
+                    child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                   child: Row(
                     children: [
@@ -428,24 +436,31 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
                       ),
                     ],
                   ),
+                    ),
+                  ),
                 ),
               );
             }
 
             // Active: owner bisa review klaim
             if (item.status == ItemStatus.active) {
-              return SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => ClaimReviewScreen(item: item))),
-                    icon: const Icon(Icons.rate_review_rounded),
-                    label: const Text('Lihat Klaim Masuk'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.statusPending,
-                      minimumSize: const Size(double.infinity, 52),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              return Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 800),
+                  child: SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: ElevatedButton.icon(
+                        onPressed: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => ClaimReviewScreen(item: item))),
+                        icon: const Icon(Icons.rate_review_rounded),
+                        label: const Text('Lihat Klaim Masuk'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.statusPending,
+                          minimumSize: const Size(double.infinity, 52),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -456,49 +471,54 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
 
           // ── FINDER ACTIONS ─────────────────────────────────────────────
           if (isFinder && item.status == ItemStatus.pendingMeetup) {
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () async {
-                          final doc = await FirebaseFirestore.instance
-                              .collection(FirestorePaths.users)
-                              .doc(item.ownerId)
-                              .get();
-                          final name = doc.data()?['nama'] ?? 'Owner';
-                          if (context.mounted) {
-                            Navigator.push(context, MaterialPageRoute(
-                              builder: (_) => ChatScreen(
-                                item: item,
-                                otherUserId: item.ownerId,
-                                otherUserName: name,
-                              ),
-                            ));
-                          }
-                        },
-                        icon: const Icon(Icons.chat_rounded, size: 18),
-                        label: const Text('Chat'),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      flex: 2,
-                      child: ElevatedButton.icon(
-                        onPressed: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => QrGeneratorScreen(item: item))),
-                        icon: const Icon(Icons.qr_code_rounded, size: 18),
-                        label: const Text('Generate QR'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.statusFound,
-                          minimumSize: const Size(double.infinity, 52),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final doc = await FirebaseFirestore.instance
+                                  .collection(FirestorePaths.users)
+                                  .doc(item.ownerId)
+                                  .get();
+                              final name = doc.data()?['nama'] ?? 'Owner';
+                              if (context.mounted) {
+                                Navigator.push(context, MaterialPageRoute(
+                                  builder: (_) => ChatScreen(
+                                    item: item,
+                                    otherUserId: item.ownerId,
+                                    otherUserName: name,
+                                  ),
+                                ));
+                              }
+                            },
+                            icon: const Icon(Icons.chat_rounded, size: 18),
+                            label: const Text('Chat'),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 2,
+                          child: ElevatedButton.icon(
+                            onPressed: () => Navigator.push(context,
+                              MaterialPageRoute(builder: (_) => QrGeneratorScreen(item: item))),
+                            icon: const Icon(Icons.qr_code_rounded, size: 18),
+                            label: const Text('Generate QR'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.statusFound,
+                              minimumSize: const Size(double.infinity, 52),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             );
@@ -506,17 +526,22 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
 
           // ── PUBLIC: Tombol klaim (jika active dan bukan owner) ─────────
           if (!isOwner && item.status == ItemStatus.active) {
-            return SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: ElevatedButton.icon(
-                  onPressed: () => setState(() => _showClaimForm = true),
-                  icon: const Icon(Icons.volunteer_activism_rounded),
-                  label: const Text('Saya Menemukan Ini!'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.statusFound,
-                    minimumSize: const Size(double.infinity, 52),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: ElevatedButton.icon(
+                      onPressed: () => setState(() => _showClaimForm = true),
+                      icon: const Icon(Icons.volunteer_activism_rounded),
+                      label: const Text('Saya Menemukan Ini!'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.statusFound,
+                        minimumSize: const Size(double.infinity, 52),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
                   ),
                 ),
               ),

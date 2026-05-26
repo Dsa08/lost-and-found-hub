@@ -69,8 +69,11 @@ class MyItemsScreen extends ConsumerWidget {
             );
           }
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: ListView.builder(
+                padding: const EdgeInsets.all(16),
             itemCount: items.length,
             itemBuilder: (ctx, i) {
               final item = items[i];
@@ -158,7 +161,9 @@ class MyItemsScreen extends ConsumerWidget {
                   ),
                 ),
               );
-            },
+                },
+              ),
+            ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),

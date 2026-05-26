@@ -55,13 +55,42 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
         content: StatefulBuilder(
           builder: (ctx, setState) => Column(
             mainAxisSize: MainAxisSize.min,
-            children: roles.map((role) => RadioListTile<String>(
-              title: Text(role.toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w600)),
-              value: role,
-              groupValue: selected,
-              activeColor: AppColors.primary,
-              onChanged: (v) => setState(() => selected = v!),
-            )).toList(),
+            children: roles.map((role) {
+              final isSelected = selected == role;
+              return GestureDetector(
+                onTap: () => setState(() => selected = role),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppColors.primaryLight : AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: isSelected ? AppColors.primary : AppColors.border,
+                      width: isSelected ? 2 : 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isSelected ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded,
+                        color: isSelected ? AppColors.primary : AppColors.textHint,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        role.toUpperCase(),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: isSelected ? AppColors.primary : AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
           ),
         ),
         actions: [
@@ -72,17 +101,41 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     );
     if (result == null || !context.mounted) return;
     await FirebaseFirestore.instance.collection(FirestorePaths.users).doc(userId).update({'role': result});
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('✅ Role diubah ke ${result.toUpperCase()}'), backgroundColor: AppColors.statusActive, behavior: SnackBarBehavior.floating),
-      );
-    }
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('\u2705 Role diubah ke ${result.toUpperCase()}'), backgroundColor: AppColors.statusActive, behavior: SnackBarBehavior.floating),
+    );
   }
 
   // ── Suspend User ───────────────────────────────────────────────────────────
-  Future<void> _suspendUser(BuildContext context, String userId, String nama) async {
+  Future<void> _suspendUser(BuildContext context, String userId, String nama, {bool alreadySuspended = false, DateTime? currentSuspendUntil}) async {
     int selectedDays = 1;
     final days = [1, 3, 7, 14, 30];
+
+    // Jika sudah suspend, tampilkan info dan tanya apakah extend
+    if (alreadySuspended && currentSuspendUntil != null) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('User Sudah Disuspend', style: TextStyle(fontWeight: FontWeight.w700)),
+          content: Text(
+            '$nama saat ini masih disuspend hingga ${currentSuspendUntil.day}/${currentSuspendUntil.month}/${currentSuspendUntil.year}.\n\nApakah kamu ingin memperpanjang/mengubah durasi suspend?',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Batal')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.statusPending),
+              child: const Text('Ubah Durasi'),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+      if (!context.mounted) return;
+    }
+
     final result = await showDialog<int>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -135,6 +188,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       );
     }
   }
+
 
   // ── Blokir/Unblokir User ───────────────────────────────────────────────────
   Future<void> _toggleBlock(BuildContext context, String userId, String nama, bool isBlocked) async {
@@ -262,7 +316,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () { Navigator.pop(ctx); _suspendUser(context, userId, data['nama'] ?? ''); },
+                    onPressed: () { Navigator.pop(ctx); _suspendUser(context, userId, data['nama'] ?? '', alreadySuspended: stillSuspended, currentSuspendUntil: suspendedUntil); },
                     icon: const Icon(Icons.timer_off_rounded, size: 16, color: AppColors.statusPending),
                     label: const Text('Suspend', style: TextStyle(color: AppColors.statusPending)),
                     style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.statusPending)),

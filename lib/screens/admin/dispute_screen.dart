@@ -40,14 +40,12 @@ class DisputeScreen extends ConsumerWidget {
 
     final batch = FirebaseFirestore.instance.batch();
 
-    // Update status dispute
     batch.update(FirebaseFirestore.instance.collection(FirestorePaths.disputes).doc(disputeId), {
       'status': 'Resolved',
       'resolution': resolution,
       'resolved_at': FieldValue.serverTimestamp(),
     });
 
-    // Update status item
     batch.update(FirebaseFirestore.instance.collection(FirestorePaths.items).doc(itemId), {
       'status': resolution == 'Refund_Owner' ? 'active' : 'resolved',
       'escrow_status': resolution == 'Refund_Owner' ? 'refunded' : 'released',
@@ -92,18 +90,24 @@ class DisputeScreen extends ConsumerWidget {
             );
           }
 
+          // Pisahkan Open dan Resolved
+          final openDocs = snapshot.docs.where((d) => d['status'] == 'Open').toList();
+          final resolvedDocs = snapshot.docs.where((d) => d['status'] != 'Open').toList();
+          final allDocs = [...openDocs, ...resolvedDocs];
+
           return ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: snapshot.docs.length,
+            itemCount: allDocs.length,
             itemBuilder: (ctx, i) {
-              final doc = snapshot.docs[i];
+              final doc = allDocs[i];
               final data = doc.data();
               final status = data['status'] as String? ?? 'Open';
               final isOpen = status == 'Open';
+              final reporterId = data['reporter_id'] as String? ?? '';
+              final accusedId = data['accused_id'] as String? ?? '';
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 14),
-                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(14),
@@ -115,91 +119,121 @@ class DisputeScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: isOpen ? AppColors.statusLost.withValues(alpha: 0.1) : AppColors.statusActive.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            isOpen ? '🔴 OPEN' : '✅ RESOLVED',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: isOpen ? AppColors.statusLost : AppColors.statusActive,
+                    // ── Status Header ──
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isOpen
+                            ? AppColors.statusLost.withValues(alpha: 0.06)
+                            : AppColors.statusActive.withValues(alpha: 0.06),
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isOpen
+                                  ? AppColors.statusLost.withValues(alpha: 0.12)
+                                  : AppColors.statusActive.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              isOpen ? '🔴 OPEN' : '✅ RESOLVED',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: isOpen ? AppColors.statusLost : AppColors.statusActive,
+                              ),
                             ),
                           ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          'ID: ${doc.id.substring(0, 8)}...',
-                          style: const TextStyle(fontSize: 11, color: AppColors.textHint),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Alasan
-                    const Text('Alasan Sengketa', style: TextStyle(fontSize: 12, color: AppColors.textHint)),
-                    Text(data['reason'] ?? '-', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-
-                    const SizedBox(height: 10),
-
-                    // Pihak
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('Pelapor', style: TextStyle(fontSize: 11, color: AppColors.textHint)),
-                              Text(data['reporter_id']?.toString().substring(0, 8) ?? '-',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                            ],
+                          const Spacer(),
+                          Text(
+                            'ID: ${doc.id.substring(0, 8)}...',
+                            style: const TextStyle(fontSize: 11, color: AppColors.textHint),
                           ),
-                        ),
-                        const Icon(Icons.arrow_forward_rounded, color: AppColors.textHint, size: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              const Text('Terlapor', style: TextStyle(fontSize: 11, color: AppColors.textHint)),
-                              Text(data['accused_id']?.toString().substring(0, 8) ?? '-',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
 
-                    if (isOpen) ...[
-                      const SizedBox(height: 14),
-                      const Divider(),
-                      const SizedBox(height: 10),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () => _resolveDispute(
-                            context, doc.id,
-                            data['item_id'] ?? '',
-                            data['reporter_id'] ?? '',
-                            data['accused_id'] ?? '',
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // ── Alasan ──
+                          const Text('Alasan Sengketa', style: TextStyle(fontSize: 12, color: AppColors.textHint)),
+                          const SizedBox(height: 4),
+                          Text(
+                            data['reason'] ?? '-',
+                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
                           ),
-                          icon: const Icon(Icons.gavel_rounded, size: 16),
-                          label: const Text('Selesaikan Sengketa'),
-                          style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A1A2E)),
-                        ),
+
+                          const SizedBox(height: 14),
+                          const Divider(height: 1),
+                          const SizedBox(height: 14),
+
+                          // ── Pihak — tampilkan nama bukan UID ──
+                          Row(
+                            children: [
+                              // Pelapor
+                              Expanded(
+                                child: _UserInfoTile(
+                                  userId: reporterId,
+                                  label: 'Pelapor',
+                                  color: AppColors.statusLost,
+                                ),
+                              ),
+                              Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 12),
+                                child: const Icon(Icons.arrow_forward_rounded, color: AppColors.textHint, size: 18),
+                              ),
+                              // Terlapor
+                              Expanded(
+                                child: _UserInfoTile(
+                                  userId: accusedId,
+                                  label: 'Terlapor',
+                                  color: AppColors.statusPending,
+                                  alignRight: true,
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          if (isOpen) ...[
+                            const SizedBox(height: 14),
+                            const Divider(height: 1),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                onPressed: () => _resolveDispute(
+                                  context, doc.id,
+                                  data['item_id'] ?? '',
+                                  reporterId,
+                                  accusedId,
+                                ),
+                                icon: const Icon(Icons.gavel_rounded, size: 16),
+                                label: const Text('Selesaikan Sengketa'),
+                                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A1A2E)),
+                              ),
+                            ),
+                          ] else ...[
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                const Icon(Icons.check_circle_outline_rounded, color: AppColors.statusActive, size: 16),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Resolusi: ${data['resolution'] ?? '-'}',
+                                  style: const TextStyle(fontSize: 13, color: AppColors.statusActive, fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
                       ),
-                    ] else ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        'Resolusi: ${data['resolution'] ?? '-'}',
-                        style: const TextStyle(fontSize: 13, color: AppColors.statusActive, fontWeight: FontWeight.w600),
-                      ),
-                    ],
+                    ),
                   ],
                 ),
               );
@@ -209,6 +243,82 @@ class DisputeScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
         error: (e, _) => Center(child: Text('$e')),
       ),
+    );
+  }
+}
+
+// ── Widget untuk tampilkan info user by ID ───────────────────────────────────
+class _UserInfoTile extends StatelessWidget {
+  final String userId;
+  final String label;
+  final Color color;
+  final bool alignRight;
+
+  const _UserInfoTile({
+    required this.userId,
+    required this.label,
+    required this.color,
+    this.alignRight = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance.collection('users').doc(userId).get(),
+      builder: (ctx, snap) {
+        final data = snap.data?.data() as Map<String, dynamic>?;
+        final nama = data?['nama'] as String? ?? 'Unknown';
+        final username = data?['username'] as String? ?? '';
+
+        return Column(
+          crossAxisAlignment: alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textHint)),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: alignRight ? MainAxisAlignment.end : MainAxisAlignment.start,
+              children: [
+                if (!alignRight) ...[
+                  CircleAvatar(
+                    radius: 12,
+                    backgroundColor: color.withValues(alpha: 0.15),
+                    child: Text(
+                      nama.isNotEmpty ? nama[0].toUpperCase() : 'U',
+                      style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: alignRight ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        snap.connectionState == ConnectionState.waiting ? '...' : nama,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (username.isNotEmpty)
+                        Text('@$username', style: const TextStyle(fontSize: 10, color: AppColors.textHint)),
+                    ],
+                  ),
+                ),
+                if (alignRight) ...[
+                  const SizedBox(width: 6),
+                  CircleAvatar(
+                    radius: 12,
+                    backgroundColor: color.withValues(alpha: 0.15),
+                    child: Text(
+                      nama.isNotEmpty ? nama[0].toUpperCase() : 'U',
+                      style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        );
+      },
     );
   }
 }

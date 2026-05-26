@@ -136,6 +136,50 @@ class ModerationScreen extends ConsumerWidget {
                             ),
                     ),
 
+                    // ── Info Owner ──
+                    FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance.collection('users').doc(ownerId).get(),
+                      builder: (ctx, userSnap) {
+                        final ownerData = userSnap.data?.data() as Map<String, dynamic>?;
+                        final ownerName = ownerData?['nama'] as String? ?? 'Unknown';
+                        final ownerUsername = ownerData?['username'] as String? ?? '';
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: const BoxDecoration(
+                            color: AppColors.primaryLight,
+                            borderRadius: BorderRadius.zero,
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 12,
+                                backgroundColor: AppColors.primary,
+                                child: Text(
+                                  ownerName.isNotEmpty ? ownerName[0].toUpperCase() : 'U',
+                                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(ownerName, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                                    if (ownerUsername.isNotEmpty)
+                                      Text('@$ownerUsername', style: const TextStyle(fontSize: 10, color: AppColors.textSecondary)),
+                                  ],
+                                ),
+                              ),
+                              const Icon(Icons.person_outline_rounded, size: 14, color: AppColors.primary),
+                              const SizedBox(width: 4),
+                              const Text('Pelapor', style: TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+
+
                     Padding(
                       padding: const EdgeInsets.all(14),
                       child: Column(

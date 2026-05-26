@@ -19,7 +19,10 @@ class WalletScreen extends ConsumerWidget {
           if (user == null) return const Center(child: Text('Belum login'));
           final historyStream = ref.watch(walletRepositoryProvider).getTransactionHistory(user.uid);
 
-          return CustomScrollView(
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: CustomScrollView(
             slivers: [
               // ── Wallet Card ──
               SliverToBoxAdapter(
@@ -143,7 +146,9 @@ class WalletScreen extends ConsumerWidget {
               ),
 
               const SliverToBoxAdapter(child: SizedBox(height: 80)),
-            ],
+                ],
+              ),
+            ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),

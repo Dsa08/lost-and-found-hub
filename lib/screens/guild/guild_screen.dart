@@ -134,8 +134,11 @@ class _GuildScreenState extends ConsumerState<GuildScreen> {
             );
           }
 
-          return CustomScrollView(
-            slivers: [
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: CustomScrollView(
+                slivers: [
               // Leaderboard Banner
               SliverToBoxAdapter(
                 child: Padding(
@@ -171,7 +174,9 @@ class _GuildScreenState extends ConsumerState<GuildScreen> {
               ),
 
               const SliverToBoxAdapter(child: SizedBox(height: 80)),
-            ],
+                ],
+              ),
+            ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
