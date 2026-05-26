@@ -210,9 +210,9 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       Text('@${data['username'] ?? '-'}', style: const TextStyle(color: AppColors.textSecondary)),
                       // Status badge
                       if (isBlocked)
-                        _StatusChip(label: 'DIBLOKIR', color: AppColors.error)
+                        const _StatusChip(label: 'DIBLOKIR', color: AppColors.error)
                       else if (stillSuspended)
-                        _StatusChip(label: 'DISUSPEND s/d ${suspendedUntil?.day}/${suspendedUntil.month}', color: AppColors.statusPending)
+                        _StatusChip(label: 'DISUSPEND s/d ${suspendedUntil.day}/${suspendedUntil.month}', color: AppColors.statusPending)
                       else
                         _StatusChip(label: data['role']?.toString().toUpperCase() ?? 'USER', color: AppColors.statusActive),
                     ],
@@ -315,7 +315,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
             child: usersAsync.when(
               data: (snapshot) {
                 final docs = snapshot.docs.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
+                  final data = doc.data();
                   if (_search.isEmpty) return true;
                   return (data['nama'] ?? '').toString().toLowerCase().contains(_search) ||
                       (data['username'] ?? '').toString().toLowerCase().contains(_search) ||
@@ -328,7 +328,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: docs.length,
                   itemBuilder: (ctx, i) {
-                    final data = docs[i].data() as Map<String, dynamic>;
+                    final data = docs[i].data();
                     final userId = docs[i].id;
                     final isBlocked = data['is_blocked'] == true;
                     final isSuspended = data['is_suspended'] == true;
@@ -351,8 +351,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                           children: [
                             Text(data['nama'] ?? '-', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                             const SizedBox(width: 6),
-                            if (isBlocked) _StatusChip(label: 'BLOKIR', color: AppColors.error)
-                            else if (isSuspended) _StatusChip(label: 'SUSPEND', color: AppColors.statusPending),
+                            if (isBlocked) const _StatusChip(label: 'BLOKIR', color: AppColors.error)
+                            else if (isSuspended) const _StatusChip(label: 'SUSPEND', color: AppColors.statusPending),
                           ],
                         ),
                         subtitle: Row(
