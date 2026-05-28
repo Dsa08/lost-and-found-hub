@@ -317,7 +317,6 @@ class _AdminHomePage extends ConsumerWidget {
         backgroundColor: const Color(0xFF1A1A2E),
         foregroundColor: Colors.white,
         centerTitle: true,
-        // ── Fix 1: Tambah tombol logout/profil di kanan atas ──
         actions: [
           GestureDetector(
             onTap: () => _logout(context, ref),
@@ -537,7 +536,6 @@ class _AlertCard extends StatelessWidget {
   );
 }
 
-// Fix 3: _MenuCard sekarang punya onTap + tidak overflow
 class _MenuCard extends StatelessWidget {
   final IconData icon;
   final String label, description;
