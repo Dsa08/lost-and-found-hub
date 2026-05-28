@@ -8,6 +8,7 @@ import '../../providers/items_provider.dart';
 import '../../providers/app_stats_provider.dart';
 import '../../widgets/item_card.dart';
 import '../../widgets/category_filter.dart';
+import '../../widgets/desktop_scaffold.dart';
 import '../items/create_item_screen.dart';
 import '../items/item_detail_screen.dart';
 import '../items/my_items_screen.dart';
@@ -25,79 +26,74 @@ class DashboardScreen extends ConsumerStatefulWidget {
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = const [
+  // Pages: index 0-4 dipakai langsung (tidak ada FAB placeholder)
+  // 0 = Beranda, 1 = Cari, 2 = Laporan Saya, 3 = Dompet, 4 = Guild
+  static const List<Widget> _pages = [
     _HomePage(),
     _SearchPage(),
-    SizedBox(), // FAB placeholder
     MyItemsScreen(),
     WalletScreen(),
     GuildScreen(),
   ];
 
+  void _onNavTap(int index) => setState(() => _currentIndex = index);
+
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.of(context).size.width >= 600;
+
+    if (isDesktop) {
+      return DesktopScaffold(
+        currentIndex: _currentIndex,
+        onNavTap: _onNavTap,
+        body: IndexedStack(
+          index: _currentIndex,
+          children: _pages,
+        ),
+      );
+    }
+
+    // ── Mobile Layout ──────────────────────────────────────────────────
     return Scaffold(
       body: IndexedStack(
-        index: _currentIndex == 2 ? 0 : _currentIndex,
+        index: _currentIndex,
         children: _pages,
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const CreateItemScreen()),
-        ),
-        backgroundColor: AppColors.primary,
-        shape: const CircleBorder(),
-        child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8,
-        color: AppColors.surface,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: _onNavTap,
+        backgroundColor: AppColors.surface,
         elevation: 8,
-        child: SizedBox(
-          height: 60,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItem(icon: Icons.home_rounded, label: 'Beranda', index: 0, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
-              _NavItem(icon: Icons.search_rounded, label: 'Cari', index: 1, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
-              const SizedBox(width: 40), // FAB space
-              _NavItem(icon: Icons.list_alt_rounded, label: 'Laporan', index: 3, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
-              _NavItem(icon: Icons.account_balance_wallet_rounded, label: 'Dompet', index: 4, current: _currentIndex, onTap: (i) => setState(() => _currentIndex = i)),
-            ],
+        shadowColor: Colors.black.withValues(alpha: 0.12),
+        indicatorColor: AppColors.primaryLight,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home_rounded),
+            label: 'Beranda',
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final int index, current;
-  final void Function(int) onTap;
-
-  const _NavItem({required this.icon, required this.label, required this.index, required this.current, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final isActive = index == current;
-    return GestureDetector(
-      onTap: () => onTap(index),
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 64,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: isActive ? AppColors.primary : AppColors.textHint, size: 24),
-            const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: isActive ? AppColors.primary : AppColors.textHint)),
-          ],
-        ),
+          NavigationDestination(
+            icon: Icon(Icons.search_outlined),
+            selectedIcon: Icon(Icons.search_rounded),
+            label: 'Cari',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.list_alt_outlined),
+            selectedIcon: Icon(Icons.list_alt_rounded),
+            label: 'Laporan',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.account_balance_wallet_outlined),
+            selectedIcon: Icon(Icons.account_balance_wallet_rounded),
+            label: 'Dompet',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.shield_outlined),
+            selectedIcon: Icon(Icons.shield_rounded),
+            label: 'Guild',
+          ),
+        ],
       ),
     );
   }
@@ -112,6 +108,7 @@ class _HomePage extends ConsumerWidget {
     final user = ref.watch(currentUserProvider).valueOrNull;
     final filter = ref.watch(itemFilterProvider);
     final itemsAsync = ref.watch(activeItemsProvider);
+    final isDesktop = MediaQuery.of(context).size.width >= 600;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -121,7 +118,7 @@ class _HomePage extends ConsumerWidget {
             // ── App Bar ──
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                padding: EdgeInsets.fromLTRB(isDesktop ? 24 : 16, 16, isDesktop ? 24 : 16, 0),
                 child: Row(
                   children: [
                     Expanded(
@@ -130,7 +127,11 @@ class _HomePage extends ConsumerWidget {
                         children: [
                           Text(
                             'Halo, ${user?.nama.split(' ').first ?? 'Pengguna'}! 👋',
-                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                            style: TextStyle(
+                              fontSize: isDesktop ? 24 : 20,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
                           ),
                           const Text(
                             'Ada barang hilang hari ini?',
@@ -172,16 +173,31 @@ class _HomePage extends ConsumerWidget {
                         ),
                       ),
                     ),
+                    // Tombol Buat Laporan di header (mobile, menggantikan FAB)
+                    if (!isDesktop) ...[
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateItemScreen())),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ),
 
             // ── Stats Banner (real-time) ──
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: _StatsBanner(),
+                padding: EdgeInsets.fromLTRB(isDesktop ? 24 : 16, 16, isDesktop ? 24 : 16, 0),
+                child: const _StatsBanner(),
               ),
             ),
 
@@ -199,7 +215,7 @@ class _HomePage extends ConsumerWidget {
                     final count = snap.data?.docs.length ?? 0;
                     if (count == 0) return const SizedBox.shrink();
                     return Container(
-                      margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      margin: EdgeInsets.fromLTRB(isDesktop ? 24 : 16, 12, isDesktop ? 24 : 16, 0),
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: AppColors.statusPending.withValues(alpha: 0.1),
@@ -226,7 +242,7 @@ class _HomePage extends ConsumerWidget {
             // ── Filter Toggle ──
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+                padding: EdgeInsets.fromLTRB(isDesktop ? 24 : 16, 16, isDesktop ? 24 : 16, 12),
                 child: Row(
                   children: [
                     Expanded(
@@ -265,7 +281,7 @@ class _HomePage extends ConsumerWidget {
 
             const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
-            // ── Items List ──
+            // ── Items List (desktop: 2 kolom, mobile: 1 kolom) ──
             itemsAsync.when(
               data: (items) {
                 if (items.isEmpty) {
@@ -283,6 +299,30 @@ class _HomePage extends ConsumerWidget {
                     ),
                   );
                 }
+
+                if (isDesktop) {
+                  // Desktop: 2-column grid
+                  return SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    sliver: SliverGrid(
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: 2.6,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (ctx, i) => ItemCard(
+                          item: items[i],
+                          onTap: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => ItemDetailScreen(itemId: items[i].itemId))),
+                        ),
+                        childCount: items.length,
+                      ),
+                    ),
+                  );
+                }
+
+                // Mobile: list biasa
                 return SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (ctx, i) => ItemCard(
@@ -419,6 +459,7 @@ class _SearchPageState extends ConsumerState<_SearchPage> {
   @override
   Widget build(BuildContext context) {
     final itemsAsync = ref.watch(activeItemsProvider);
+    final isDesktop = MediaQuery.of(context).size.width >= 600;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -456,6 +497,24 @@ class _SearchPageState extends ConsumerState<_SearchPage> {
               ),
             );
           }
+
+          if (isDesktop) {
+            return GridView.builder(
+              padding: const EdgeInsets.all(24),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
+                childAspectRatio: 2.6,
+              ),
+              itemCount: filtered.length,
+              itemBuilder: (ctx, i) => ItemCard(
+                item: filtered[i],
+                onTap: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => ItemDetailScreen(itemId: filtered[i].itemId))),
+              ),
+            );
+          }
+
           return ListView.builder(
             itemCount: filtered.length,
             itemBuilder: (ctx, i) => ItemCard(

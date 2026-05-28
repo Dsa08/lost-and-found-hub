@@ -116,8 +116,11 @@ class ClaimReviewScreen extends ConsumerWidget {
           ],
         ),
       ),
-      body: Column(
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Column(
+            children: [
           // Info Security Question
           Container(
             margin: const EdgeInsets.all(16),
@@ -321,6 +324,8 @@ class ClaimReviewScreen extends ConsumerWidget {
           ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }

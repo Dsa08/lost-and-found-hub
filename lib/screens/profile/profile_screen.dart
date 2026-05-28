@@ -133,8 +133,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       body: userAsync.when(
         data: (user) {
           if (user == null) return const Center(child: Text('Belum login'));
-          return SingleChildScrollView(
-            child: Column(
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: SingleChildScrollView(
+                child: Column(
               children: [
                 // ── Header / Avatar ──
                 Container(
@@ -302,6 +305,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
               ],
+            ),
+              ),
             ),
           );
         },

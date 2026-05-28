@@ -20,7 +20,7 @@ class AdminDashboardScreen extends ConsumerStatefulWidget {
 class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _pages = const [
+  static const List<Widget> _pages = [
     _AdminHomePage(),
     ModerationScreen(),
     UserManagementScreen(),
@@ -28,20 +28,236 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     TransactionLogScreen(),
   ];
 
+  void _onNavTap(int i) => setState(() => _currentIndex = i);
+
   @override
   Widget build(BuildContext context) {
+    final isDesktop = MediaQuery.of(context).size.width >= 600;
+
+    if (isDesktop) {
+      return _AdminDesktopLayout(
+        currentIndex: _currentIndex,
+        onNavTap: _onNavTap,
+        body: IndexedStack(index: _currentIndex, children: _pages),
+      );
+    }
+
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: _pages),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
-        onDestinationSelected: (i) => setState(() => _currentIndex = i),
-        backgroundColor: AppColors.surface,
+        onDestinationSelected: _onNavTap,
+        backgroundColor: const Color(0xFF1A1A2E),
+        indicatorColor: Colors.white.withValues(alpha: 0.15),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.dashboard_rounded), label: 'Dashboard'),
-          NavigationDestination(icon: Icon(Icons.pending_actions_rounded), label: 'Moderasi'),
-          NavigationDestination(icon: Icon(Icons.people_rounded), label: 'User'),
-          NavigationDestination(icon: Icon(Icons.gavel_rounded), label: 'Sengketa'),
-          NavigationDestination(icon: Icon(Icons.receipt_long_rounded), label: 'Log'),
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined, color: Colors.white54),
+            selectedIcon: Icon(Icons.dashboard_rounded, color: Colors.white),
+            label: 'Dashboard',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.pending_actions_outlined, color: Colors.white54),
+            selectedIcon: Icon(Icons.pending_actions_rounded, color: Colors.white),
+            label: 'Moderasi',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.people_outline, color: Colors.white54),
+            selectedIcon: Icon(Icons.people_rounded, color: Colors.white),
+            label: 'User',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.gavel_outlined, color: Colors.white54),
+            selectedIcon: Icon(Icons.gavel_rounded, color: Colors.white),
+            label: 'Sengketa',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined, color: Colors.white54),
+            selectedIcon: Icon(Icons.receipt_long_rounded, color: Colors.white),
+            label: 'Log',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Desktop Sidebar Layout ────────────────────────────────────────────────────
+class _AdminDesktopLayout extends ConsumerStatefulWidget {
+  final Widget body;
+  final int currentIndex;
+  final void Function(int) onNavTap;
+
+  const _AdminDesktopLayout({
+    required this.body,
+    required this.currentIndex,
+    required this.onNavTap,
+  });
+
+  @override
+  ConsumerState<_AdminDesktopLayout> createState() => _AdminDesktopLayoutState();
+}
+
+class _AdminDesktopLayoutState extends ConsumerState<_AdminDesktopLayout> {
+  static const _navItems = [
+    (Icons.dashboard_outlined, Icons.dashboard_rounded, 'Dashboard'),
+    (Icons.pending_actions_outlined, Icons.pending_actions_rounded, 'Moderasi'),
+    (Icons.people_outline, Icons.people_rounded, 'Kelola User'),
+    (Icons.gavel_outlined, Icons.gavel_rounded, 'Sengketa'),
+    (Icons.receipt_long_outlined, Icons.receipt_long_rounded, 'Log Transaksi'),
+  ];
+
+  Future<void> _logout() async {
+    await ref.read(authRepositoryProvider).logout();
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (_) => false,
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = ref.watch(currentUserProvider).valueOrNull;
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Row(
+        children: [
+          // ── Admin Sidebar ─────────────────────────────────────────────
+          Container(
+            width: 240,
+            color: const Color(0xFF1A1A2E),
+            child: Column(
+              children: [
+                // Logo
+                Container(
+                  padding: const EdgeInsets.fromLTRB(20, 32, 20, 20),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.admin_panel_settings_rounded, color: Colors.white, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Admin', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15)),
+                          Text('Panel', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // User info
+                if (user != null)
+                  Container(
+                    margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: AppColors.primary,
+                          child: Text(user.nama[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(user.nama, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis),
+                              const Text('Administrator', style: TextStyle(color: Colors.white38, fontSize: 10)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Nav items
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    children: [
+                      ..._navItems.asMap().entries.map((e) {
+                        final i = e.key;
+                        final item = e.value;
+                        final isActive = widget.currentIndex == i;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 2),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            decoration: BoxDecoration(
+                              color: isActive ? Colors.white.withValues(alpha: 0.12) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: ListTile(
+                              dense: true,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+                              leading: Icon(
+                                isActive ? item.$2 : item.$1,
+                                color: isActive ? Colors.white : Colors.white54,
+                                size: 20,
+                              ),
+                              title: Text(
+                                item.$3,
+                                style: TextStyle(
+                                  color: isActive ? Colors.white : Colors.white70,
+                                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              onTap: () => widget.onNavTap(i),
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+
+                // Logout
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: InkWell(
+                    onTap: _logout,
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                      ),
+                      child: const Row(
+                        children: [
+                          Icon(Icons.logout_rounded, color: AppColors.error, size: 18),
+                          SizedBox(width: 10),
+                          Text('Logout', style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w600, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ── Main Content ─────────────────────────────────────────────
+          Expanded(child: widget.body),
         ],
       ),
     );
@@ -80,6 +296,11 @@ class _AdminHomePage extends ConsumerWidget {
     }
   }
 
+  // Ambil parent state untuk navigasi antar tab
+  static _AdminDashboardScreenState? _findParentState(BuildContext context) {
+    return context.findAncestorStateOfType<_AdminDashboardScreenState>();
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(appStatsProvider);
@@ -87,10 +308,11 @@ class _AdminHomePage extends ConsumerWidget {
     final disputesAsync = ref.watch(allDisputesProvider);
     final usersAsync = ref.watch(allUsersProvider);
     final user = ref.watch(currentUserProvider).valueOrNull;
+    final isDesktop = MediaQuery.of(context).size.width >= 600;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
+      appBar: isDesktop ? null : AppBar(
         title: const Text('Admin Panel'),
         backgroundColor: const Color(0xFF1A1A2E),
         foregroundColor: Colors.white,
@@ -122,11 +344,11 @@ class _AdminHomePage extends ConsumerWidget {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isDesktop ? 24 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header ──
+            // ── Header Banner ──
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
@@ -141,7 +363,10 @@ class _AdminHomePage extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Selamat Datang, Admin 👋', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                  Text(
+                    'Selamat Datang, ${user?.nama.split(' ').first ?? 'Admin'} 👋',
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
                   const SizedBox(height: 4),
                   const Text('Lost & Found Hub', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 16),
@@ -166,7 +391,7 @@ class _AdminHomePage extends ConsumerWidget {
             const Text('Perlu Perhatian', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
             const SizedBox(height: 12),
 
-            // ── Alert Cards ──
+            // ── Alert Cards — onTap sudah berfungsi ──
             Row(
               children: [
                 Expanded(
@@ -179,7 +404,7 @@ class _AdminHomePage extends ConsumerWidget {
                       loading: () => '...',
                       error: (_, __) => '!',
                     ),
-                    onTap: () {},
+                    onTap: () => _findParentState(context)?._onNavTap(1),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -193,7 +418,7 @@ class _AdminHomePage extends ConsumerWidget {
                       loading: () => '...',
                       error: (_, __) => '!',
                     ),
-                    onTap: () {},
+                    onTap: () => _findParentState(context)?._onNavTap(3),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -207,7 +432,7 @@ class _AdminHomePage extends ConsumerWidget {
                       loading: () => '...',
                       error: (_, __) => '!',
                     ),
-                    onTap: () {},
+                    onTap: () => _findParentState(context)?._onNavTap(2),
                   ),
                 ),
               ],
@@ -217,42 +442,42 @@ class _AdminHomePage extends ConsumerWidget {
             const Text('Menu Admin', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
             const SizedBox(height: 12),
 
-            // ── Fix 2: Menu Grid dengan onTap yang berfungsi + fix overflow ──
+            // ── Menu Grid — navigasi via tab index ──
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
+              crossAxisCount: isDesktop ? 4 : 2,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: 1.5, // Fix overflow dengan ratio lebih besar
+              childAspectRatio: isDesktop ? 1.6 : 1.5,
               children: [
                 _MenuCard(
                   icon: Icons.pending_actions_rounded,
                   label: 'Moderasi',
                   color: AppColors.statusPending,
                   description: 'Approve/reject laporan',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ModerationScreen())),
+                  onTap: () => _findParentState(context)?._onNavTap(1),
                 ),
                 _MenuCard(
                   icon: Icons.people_rounded,
                   label: 'Kelola User',
                   color: AppColors.primary,
                   description: 'Lihat & edit pengguna',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UserManagementScreen())),
+                  onTap: () => _findParentState(context)?._onNavTap(2),
                 ),
                 _MenuCard(
                   icon: Icons.gavel_rounded,
                   label: 'Sengketa',
                   color: AppColors.statusLost,
                   description: 'Handle dispute',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DisputeScreen())),
+                  onTap: () => _findParentState(context)?._onNavTap(3),
                 ),
                 _MenuCard(
                   icon: Icons.receipt_long_rounded,
                   label: 'Log Transaksi',
                   color: AppColors.statusActive,
                   description: 'Riwayat poin',
-                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TransactionLogScreen())),
+                  onTap: () => _findParentState(context)?._onNavTap(4),
                 ),
               ],
             ),
@@ -304,6 +529,8 @@ class _AlertCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(value, style: TextStyle(color: color, fontSize: 20, fontWeight: FontWeight.w800)),
           Text(label, style: const TextStyle(fontSize: 9, color: AppColors.textSecondary), textAlign: TextAlign.center),
+          const SizedBox(height: 4),
+          Icon(Icons.arrow_forward_ios_rounded, color: color.withValues(alpha: 0.6), size: 10),
         ],
       ),
     ),

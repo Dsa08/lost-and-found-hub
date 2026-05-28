@@ -232,8 +232,11 @@ class _CreateItemScreenState extends ConsumerState<CreateItemScreen> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Form(
-        key: _formKey,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 600),
+          child: Form(
+            key: _formKey,
         child: Stepper(
           currentStep: _currentStep,
           onStepContinue: () {
@@ -536,6 +539,8 @@ class _CreateItemScreenState extends ConsumerState<CreateItemScreen> {
               ),
             ),
           ],
+        ),
+      ),
         ),
       ),
     );

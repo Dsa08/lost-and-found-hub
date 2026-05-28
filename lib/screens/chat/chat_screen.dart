@@ -112,8 +112,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Column(
+            children: [
           // Info banner
           Container(
             width: double.infinity,
@@ -227,7 +230,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               ],
             ),
           ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }
