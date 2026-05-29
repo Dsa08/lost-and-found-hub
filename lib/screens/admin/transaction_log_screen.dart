@@ -57,10 +57,11 @@ class _TransactionLogScreenState extends ConsumerState<TransactionLogScreen> {
   @override
   Widget build(BuildContext context) {
     final logsAsync = ref.watch(allLogsProvider);
+    final isDesktop = MediaQuery.of(context).size.width >= 600;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
+      appBar: isDesktop ? null : AppBar(
         title: const Text('Log Transaksi'),
         backgroundColor: const Color(0xFF1A1A2E),
         foregroundColor: Colors.white,
@@ -68,13 +69,22 @@ class _TransactionLogScreenState extends ConsumerState<TransactionLogScreen> {
       body: logsAsync.when(
         data: (snapshot) {
           if (snapshot.docs.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.receipt_long_outlined, size: 64, color: AppColors.textHint),
-                  SizedBox(height: 12),
-                  Text('Belum ada transaksi', style: TextStyle(color: AppColors.textSecondary)),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.textHint.withValues(alpha: 0.08),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.receipt_long_outlined, size: 56, color: AppColors.textHint),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Belum ada transaksi', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 6),
+                  const Text('Transaksi bounty akan muncul di sini.', style: TextStyle(color: AppColors.textHint, fontSize: 13)),
                 ],
               ),
             );
@@ -102,40 +112,79 @@ class _TransactionLogScreenState extends ConsumerState<TransactionLogScreen> {
             children: [
               // ── Summary Stats ──
               Container(
-                margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                padding: const EdgeInsets.all(16),
+                margin: EdgeInsets.fromLTRB(isDesktop ? 24 : 16, isDesktop ? 20 : 16, isDesktop ? 24 : 16, 0),
+                padding: EdgeInsets.all(isDesktop ? 20 : 16),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF1A1A2E), Color(0xFF16213E)],
+                    colors: [Color(0xFF0F0F23), Color(0xFF1A1A2E), Color(0xFF16213E)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(child: _SummaryItem(
-                      label: 'Terkunci',
-                      value: '$totalLocked',
-                      icon: Icons.lock_rounded,
-                      color: AppColors.statusPending,
-                    )),
-                    Container(width: 1, height: 36, color: Colors.white.withValues(alpha: 0.15)),
-                    Expanded(child: _SummaryItem(
-                      label: 'Dicairkan',
-                      value: '$totalReleased',
-                      icon: Icons.lock_open_rounded,
-                      color: AppColors.statusActive,
-                    )),
-                    Container(width: 1, height: 36, color: Colors.white.withValues(alpha: 0.15)),
-                    Expanded(child: _SummaryItem(
-                      label: 'Dikembalikan',
-                      value: '$totalRefunded',
-                      icon: Icons.undo_rounded,
-                      color: AppColors.primary,
-                    )),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(color: const Color(0xFF1A1A2E).withValues(alpha: 0.2), blurRadius: 12, offset: const Offset(0, 4)),
                   ],
                 ),
+                child: isDesktop
+                    ? Row(
+                        children: [
+                          Expanded(child: _SummaryItem(
+                            label: 'Terkunci',
+                            value: '$totalLocked',
+                            icon: Icons.lock_rounded,
+                            color: AppColors.statusPending,
+                            isDesktop: true,
+                          )),
+                          Container(width: 1, height: 48, color: Colors.white.withValues(alpha: 0.1)),
+                          Expanded(child: _SummaryItem(
+                            label: 'Dicairkan',
+                            value: '$totalReleased',
+                            icon: Icons.lock_open_rounded,
+                            color: AppColors.statusActive,
+                            isDesktop: true,
+                          )),
+                          Container(width: 1, height: 48, color: Colors.white.withValues(alpha: 0.1)),
+                          Expanded(child: _SummaryItem(
+                            label: 'Dikembalikan',
+                            value: '$totalRefunded',
+                            icon: Icons.undo_rounded,
+                            color: AppColors.primary,
+                            isDesktop: true,
+                          )),
+                          Container(width: 1, height: 48, color: Colors.white.withValues(alpha: 0.1)),
+                          Expanded(child: _SummaryItem(
+                            label: 'Total Transaksi',
+                            value: '${allDocs.length}',
+                            icon: Icons.receipt_long_rounded,
+                            color: AppColors.bounty,
+                            isDesktop: true,
+                          )),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          Expanded(child: _SummaryItem(
+                            label: 'Terkunci',
+                            value: '$totalLocked',
+                            icon: Icons.lock_rounded,
+                            color: AppColors.statusPending,
+                          )),
+                          Container(width: 1, height: 36, color: Colors.white.withValues(alpha: 0.15)),
+                          Expanded(child: _SummaryItem(
+                            label: 'Dicairkan',
+                            value: '$totalReleased',
+                            icon: Icons.lock_open_rounded,
+                            color: AppColors.statusActive,
+                          )),
+                          Container(width: 1, height: 36, color: Colors.white.withValues(alpha: 0.15)),
+                          Expanded(child: _SummaryItem(
+                            label: 'Dikembalikan',
+                            value: '$totalRefunded',
+                            icon: Icons.undo_rounded,
+                            color: AppColors.primary,
+                          )),
+                        ],
+                      ),
               ),
 
               // ── Filter Chips ──
@@ -143,7 +192,7 @@ class _TransactionLogScreenState extends ConsumerState<TransactionLogScreen> {
                 height: 52,
                 child: ListView(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+                  padding: EdgeInsets.fromLTRB(isDesktop ? 24 : 16, 10, isDesktop ? 24 : 16, 4),
                   children: _filterOptions.map((opt) {
                     final isSelected = _filterType == opt.$1;
                     return Padding(
@@ -177,7 +226,7 @@ class _TransactionLogScreenState extends ConsumerState<TransactionLogScreen> {
 
               // ── Count label ──
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+                padding: EdgeInsets.fromLTRB(isDesktop ? 24 : 16, 4, isDesktop ? 24 : 16, 4),
                 child: Row(
                   children: [
                     Text(
@@ -202,9 +251,9 @@ class _TransactionLogScreenState extends ConsumerState<TransactionLogScreen> {
                         ),
                       )
                     : ListView.separated(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                        padding: EdgeInsets.symmetric(horizontal: isDesktop ? 24 : 16, vertical: 4),
                         itemCount: filtered.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        separatorBuilder: (_, __) => Divider(height: 1, color: AppColors.divider.withValues(alpha: 0.5)),
                         itemBuilder: (ctx, i) {
                           final data = filtered[i].data();
                           final type = data['type'] as String? ?? '';
@@ -234,8 +283,8 @@ class _TransactionLogScreenState extends ConsumerState<TransactionLogScreen> {
                                 ),
                                 if (fromUser.isNotEmpty || toUser.isNotEmpty)
                                   Text(
-                                    '${fromUser.isNotEmpty ? "dari ${fromUser.substring(0, 6)}..." : ""}'
-                                    '${toUser.isNotEmpty ? " → ${toUser.substring(0, 6)}..." : ""}',
+                                    '${fromUser.isNotEmpty ? "dari ${fromUser.substring(0, fromUser.length > 6 ? 6 : fromUser.length)}..." : ""}'
+                                    '${toUser.isNotEmpty ? " → ${toUser.substring(0, toUser.length > 6 ? 6 : toUser.length)}..." : ""}',
                                     style: const TextStyle(fontSize: 10, color: AppColors.textHint),
                                   ),
                                 if (timestamp != null)
@@ -274,14 +323,16 @@ class _SummaryItem extends StatelessWidget {
   final String label, value;
   final IconData icon;
   final Color color;
-  const _SummaryItem({required this.label, required this.value, required this.icon, required this.color});
+  final bool isDesktop;
+  const _SummaryItem({required this.label, required this.value, required this.icon, required this.color, this.isDesktop = false});
 
   @override
   Widget build(BuildContext context) => Column(
     children: [
-      Icon(icon, color: color, size: 16),
-      const SizedBox(height: 4),
-      Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: 18)),
+      Icon(icon, color: color, size: isDesktop ? 20 : 16),
+      SizedBox(height: isDesktop ? 6 : 4),
+      Text(value, style: TextStyle(color: color, fontWeight: FontWeight.w800, fontSize: isDesktop ? 22 : 18)),
+      const SizedBox(height: 2),
       Text(label, style: const TextStyle(color: Colors.white54, fontSize: 10)),
     ],
   );

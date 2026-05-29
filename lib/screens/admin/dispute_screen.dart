@@ -67,10 +67,11 @@ class DisputeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final disputesAsync = ref.watch(allDisputesProvider);
+    final isDesktop = MediaQuery.of(context).size.width >= 600;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
+      appBar: isDesktop ? null : AppBar(
         title: const Text('Resolusi Sengketa'),
         backgroundColor: const Color(0xFF1A1A2E),
         foregroundColor: Colors.white,
@@ -78,13 +79,22 @@ class DisputeScreen extends ConsumerWidget {
       body: disputesAsync.when(
         data: (snapshot) {
           if (snapshot.docs.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.handshake_rounded, size: 64, color: AppColors.statusActive),
-                  SizedBox(height: 12),
-                  Text('Tidak ada sengketa aktif!', style: TextStyle(color: AppColors.textSecondary, fontSize: 15)),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: AppColors.statusActive.withValues(alpha: 0.08),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.handshake_rounded, size: 56, color: AppColors.statusActive),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Tidak ada sengketa aktif!', style: TextStyle(color: AppColors.textSecondary, fontSize: 15, fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 6),
+                  const Text('Semua berjalan lancar saat ini.', style: TextStyle(color: AppColors.textHint, fontSize: 13)),
                 ],
               ),
             );
@@ -95,153 +105,168 @@ class DisputeScreen extends ConsumerWidget {
           final resolvedDocs = snapshot.docs.where((d) => d['status'] != 'Open').toList();
           final allDocs = [...openDocs, ...resolvedDocs];
 
+          if (isDesktop) {
+            return GridView.builder(
+              padding: const EdgeInsets.all(24),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 20,
+                mainAxisSpacing: 20,
+                mainAxisExtent: 310,
+              ),
+              itemCount: allDocs.length,
+              itemBuilder: (ctx, i) => _buildDisputeCard(context, allDocs[i]),
+            );
+          }
+
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: allDocs.length,
-            itemBuilder: (ctx, i) {
-              final doc = allDocs[i];
-              final data = doc.data();
-              final status = data['status'] as String? ?? 'Open';
-              final isOpen = status == 'Open';
-              final reporterId = data['reporter_id'] as String? ?? '';
-              final accusedId = data['accused_id'] as String? ?? '';
-
-              return Container(
-                margin: const EdgeInsets.only(bottom: 14),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: isOpen ? AppColors.statusLost.withValues(alpha: 0.4) : AppColors.border,
-                  ),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8)],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ── Status Header ──
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isOpen
-                            ? AppColors.statusLost.withValues(alpha: 0.06)
-                            : AppColors.statusActive.withValues(alpha: 0.06),
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: isOpen
-                                  ? AppColors.statusLost.withValues(alpha: 0.12)
-                                  : AppColors.statusActive.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              isOpen ? '🔴 OPEN' : '✅ RESOLVED',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: isOpen ? AppColors.statusLost : AppColors.statusActive,
-                              ),
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            'ID: ${doc.id.substring(0, 8)}...',
-                            style: const TextStyle(fontSize: 11, color: AppColors.textHint),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // ── Alasan ──
-                          const Text('Alasan Sengketa', style: TextStyle(fontSize: 12, color: AppColors.textHint)),
-                          const SizedBox(height: 4),
-                          Text(
-                            data['reason'] ?? '-',
-                            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                          ),
-
-                          const SizedBox(height: 14),
-                          const Divider(height: 1),
-                          const SizedBox(height: 14),
-
-                          // ── Pihak — tampilkan nama bukan UID ──
-                          Row(
-                            children: [
-                              // Pelapor
-                              Expanded(
-                                child: _UserInfoTile(
-                                  userId: reporterId,
-                                  label: 'Pelapor',
-                                  color: AppColors.statusLost,
-                                ),
-                              ),
-                              Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 12),
-                                child: const Icon(Icons.arrow_forward_rounded, color: AppColors.textHint, size: 18),
-                              ),
-                              // Terlapor
-                              Expanded(
-                                child: _UserInfoTile(
-                                  userId: accusedId,
-                                  label: 'Terlapor',
-                                  color: AppColors.statusPending,
-                                  alignRight: true,
-                                ),
-                              ),
-                            ],
-                          ),
-
-                          if (isOpen) ...[
-                            const SizedBox(height: 14),
-                            const Divider(height: 1),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                onPressed: () => _resolveDispute(
-                                  context, doc.id,
-                                  data['item_id'] ?? '',
-                                  reporterId,
-                                  accusedId,
-                                ),
-                                icon: const Icon(Icons.gavel_rounded, size: 16),
-                                label: const Text('Selesaikan Sengketa'),
-                                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A1A2E)),
-                              ),
-                            ),
-                          ] else ...[
-                            const SizedBox(height: 12),
-                            Row(
-                              children: [
-                                const Icon(Icons.check_circle_outline_rounded, color: AppColors.statusActive, size: 16),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Resolusi: ${data['resolution'] ?? '-'}',
-                                  style: const TextStyle(fontSize: 13, color: AppColors.statusActive, fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
+            itemBuilder: (ctx, i) => _buildDisputeCard(context, allDocs[i]),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
         error: (e, _) => Center(child: Text('$e')),
+      ),
+    );
+  }
+
+  Widget _buildDisputeCard(BuildContext context, QueryDocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    final status = data['status'] as String? ?? 'Open';
+    final isOpen = status == 'Open';
+    final reporterId = data['reporter_id'] as String? ?? '';
+    final accusedId = data['accused_id'] as String? ?? '';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isOpen ? AppColors.statusLost.withValues(alpha: 0.4) : AppColors.divider.withValues(alpha: 0.5),
+        ),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Status Header ──
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: isOpen
+                  ? AppColors.statusLost.withValues(alpha: 0.06)
+                  : AppColors.statusActive.withValues(alpha: 0.06),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isOpen
+                        ? AppColors.statusLost.withValues(alpha: 0.12)
+                        : AppColors.statusActive.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    isOpen ? '🔴 OPEN' : '✅ RESOLVED',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: isOpen ? AppColors.statusLost : AppColors.statusActive,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  'ID: ${doc.id.substring(0, 8)}...',
+                  style: const TextStyle(fontSize: 11, color: AppColors.textHint),
+                ),
+              ],
+            ),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Alasan ──
+                const Text('Alasan Sengketa', style: TextStyle(fontSize: 12, color: AppColors.textHint)),
+                const SizedBox(height: 4),
+                Text(
+                  data['reason'] ?? '-',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+
+                const SizedBox(height: 14),
+                const Divider(height: 1),
+                const SizedBox(height: 14),
+
+                // ── Pihak ──
+                Row(
+                  children: [
+                    Expanded(
+                      child: _UserInfoTile(
+                        userId: reporterId,
+                        label: 'Pelapor',
+                        color: AppColors.statusLost,
+                      ),
+                    ),
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 12),
+                      child: const Icon(Icons.arrow_forward_rounded, color: AppColors.textHint, size: 18),
+                    ),
+                    Expanded(
+                      child: _UserInfoTile(
+                        userId: accusedId,
+                        label: 'Terlapor',
+                        color: AppColors.statusPending,
+                        alignRight: true,
+                      ),
+                    ),
+                  ],
+                ),
+
+                if (isOpen) ...[
+                  const SizedBox(height: 14),
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _resolveDispute(
+                        context, doc.id,
+                        data['item_id'] ?? '',
+                        reporterId,
+                        accusedId,
+                      ),
+                      icon: const Icon(Icons.gavel_rounded, size: 16),
+                      label: const Text('Selesaikan Sengketa'),
+                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1A1A2E)),
+                    ),
+                  ),
+                ] else ...[
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Icon(Icons.check_circle_outline_rounded, color: AppColors.statusActive, size: 16),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Resolusi: ${data['resolution'] ?? '-'}',
+                        style: const TextStyle(fontSize: 13, color: AppColors.statusActive, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

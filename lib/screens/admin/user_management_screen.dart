@@ -340,27 +340,48 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
   @override
   Widget build(BuildContext context) {
     final usersAsync = ref.watch(allUsersProvider);
+    final isDesktop = MediaQuery.of(context).size.width >= 600;
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
+      appBar: isDesktop ? null : AppBar(
         title: const Text('Kelola User'),
         backgroundColor: const Color(0xFF1A1A2E),
         foregroundColor: Colors.white,
       ),
       body: Column(
         children: [
+          // Search bar
           Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              onChanged: (v) => setState(() => _search = v.toLowerCase()),
-              decoration: InputDecoration(
-                hintText: 'Cari user...',
-                prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
-                filled: true,
-                fillColor: AppColors.surface,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-              ),
+            padding: EdgeInsets.fromLTRB(
+              isDesktop ? 24 : 16,
+              isDesktop ? 20 : 16,
+              isDesktop ? 24 : 16,
+              isDesktop ? 16 : 16,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 480),
+                    child: TextField(
+                      onChanged: (v) => setState(() => _search = v.toLowerCase()),
+                      decoration: InputDecoration(
+                        hintText: 'Cari user berdasarkan nama, username, atau email...',
+                        hintStyle: const TextStyle(fontSize: 13, color: AppColors.textHint),
+                        prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
+                        filled: true,
+                        fillColor: AppColors.surface,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.divider.withValues(alpha: 0.5))),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.divider.withValues(alpha: 0.5))),
+                        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.primary)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      ),
+                    ),
+                  ),
+                ),
+                if (isDesktop) ..._buildUserCount(usersAsync),
+              ],
             ),
           ),
           Expanded(
@@ -374,10 +395,28 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       (data['email'] ?? '').toString().toLowerCase().contains(_search);
                 }).toList();
 
-                if (docs.isEmpty) return const Center(child: Text('Tidak ada user ditemukan'));
+                if (docs.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.textHint.withValues(alpha: 0.08),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.person_search_rounded, size: 40, color: AppColors.textHint),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text('Tidak ada user ditemukan', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
+                      ],
+                    ),
+                  );
+                }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: EdgeInsets.symmetric(horizontal: isDesktop ? 24 : 16),
                   itemCount: docs.length,
                   itemBuilder: (ctx, i) {
                     final data = docs[i].data();
@@ -390,8 +429,12 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                       decoration: BoxDecoration(
                         color: AppColors.surface,
                         borderRadius: BorderRadius.circular(12),
-                        border: isBlocked ? Border.all(color: AppColors.error.withValues(alpha: 0.3)) : null,
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 6)],
+                        border: Border.all(
+                          color: isBlocked
+                              ? AppColors.error.withValues(alpha: 0.3)
+                              : AppColors.divider.withValues(alpha: 0.5),
+                        ),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6, offset: const Offset(0, 2))],
                       ),
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -401,7 +444,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         ),
                         title: Row(
                           children: [
-                            Text(data['nama'] ?? '-', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                            Flexible(child: Text(data['nama'] ?? '-', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14), overflow: TextOverflow.ellipsis)),
                             const SizedBox(width: 6),
                             if (isBlocked) const _StatusChip(label: 'BLOKIR', color: AppColors.error)
                             else if (isSuspended) const _StatusChip(label: 'SUSPEND', color: AppColors.statusPending),
@@ -413,6 +456,10 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                             const SizedBox(width: 8),
                             const Icon(Icons.star_rounded, size: 12, color: AppColors.bounty),
                             Text(' ${data['total_poin'] ?? 0}', style: const TextStyle(fontSize: 11, color: AppColors.bounty, fontWeight: FontWeight.w600)),
+                            if (isDesktop) ...[
+                              const SizedBox(width: 12),
+                              Text(data['email'] ?? '', style: const TextStyle(fontSize: 11, color: AppColors.textHint)),
+                            ],
                           ],
                         ),
                         trailing: IconButton(
@@ -432,6 +479,32 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
         ],
       ),
     );
+  }
+
+  List<Widget> _buildUserCount(AsyncValue usersAsync) {
+    return [
+      const SizedBox(width: 16),
+      usersAsync.when(
+        data: (snapshot) => Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.primaryLight,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.people_rounded, size: 16, color: AppColors.primary),
+              const SizedBox(width: 6),
+              Text('${snapshot.docs.length} user', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary)),
+            ],
+          ),
+        ),
+        loading: () => const SizedBox.shrink(),
+        error: (_, __) => const SizedBox.shrink(),
+      ),
+    ];
   }
 }
 
