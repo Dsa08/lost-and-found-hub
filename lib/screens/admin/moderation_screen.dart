@@ -6,9 +6,16 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/firestore_paths.dart';
 import '../../../providers/admin_provider.dart';
 
+/// **ModerationScreen (Layar Moderasi)**
+/// Layar ini digunakan oleh Admin untuk meninjau laporan barang (hilang/temuan)
+/// sebelum dipublikasikan ke beranda semua user. Tujuannya mencegah spam atau konten tidak pantas.
 class ModerationScreen extends ConsumerWidget {
   const ModerationScreen({super.key});
 
+  /// **Fungsi _approveItem**
+  /// Menyetujui laporan agar tampil di publik.
+  /// 1. Mengubah `is_approved` menjadi true dan `status` menjadi active.
+  /// 2. Menambah statistik `total_reports` pada profil pengguna pelapor.
   Future<void> _approveItem(BuildContext context, String itemId, String uid) async {
     await FirebaseFirestore.instance
         .collection(FirestorePaths.items)
@@ -33,6 +40,9 @@ class ModerationScreen extends ConsumerWidget {
     }
   }
 
+  /// **Fungsi _rejectItem**
+  /// Menolak laporan. Admin diwajibkan mengisi alasan penolakan lewat pop-up (Dialog).
+  /// Laporan yang ditolak akan diubah statusnya menjadi 'expired' dan alasannya disimpan di `reject_reason`.
   Future<void> _rejectItem(BuildContext context, String itemId, String ownerId) async {
     final reasonCtrl = TextEditingController();
     final reason = await showDialog<String>(

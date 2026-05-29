@@ -4,6 +4,10 @@ import '../../core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../repositories/wallet_repository.dart';
 
+/// **WalletScreen (Layar Dompet & Statistik)**
+/// Menampilkan ringkasan saldo poin pengguna (Poin Aktif & Terkunci di Escrow),
+/// statistik tingkat keberhasilan laporan (Success Rate),
+/// serta riwayat aliran keluar-masuk poin (Transaction Logs).
 class WalletScreen extends ConsumerWidget {
   const WalletScreen({super.key});
 

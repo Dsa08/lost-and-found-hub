@@ -15,6 +15,11 @@ import '../chat/chat_screen.dart';
 import '../qr/qr_screen.dart';
 import 'claim_review_screen.dart';
 
+/// **ItemDetailScreen (Layar Detail Barang)**
+/// Menampilkan informasi lengkap sebuah laporan (foto, video, peta, dsb).
+/// Layar ini sangat dinamis; tombol di bagian bawah (BottomNavigationBar) 
+/// akan berubah-ubah tergantung siapa yang melihat (Pemilik atau Orang Lain) 
+/// dan apa status barang saat ini (Active / PendingMeetup / Resolved).
 class ItemDetailScreen extends ConsumerStatefulWidget {
   final String itemId;
   const ItemDetailScreen({super.key, required this.itemId});
@@ -35,6 +40,8 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
     super.dispose();
   }
 
+  /// **Fungsi _submitClaim (Ajukan Klaim)**
+  /// Dipanggil saat orang lain menekan tombol "Saya Menemukan Ini!" dan mengisi jawaban keamanan.
   Future<void> _submitClaim(ItemModel item) async {
     if (_answerCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -72,6 +79,8 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
     }
   }
 
+  /// **Fungsi _downloadPdf**
+  /// Mengambil data pemilik (Owner) dan penemu (Finder), lalu men-generate Sertifikat Serah Terima (PDF).
   Future<void> _downloadPdf(ItemModel item) async {
     setState(() => _isGeneratingPdf = true);
     try {

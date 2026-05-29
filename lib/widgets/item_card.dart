@@ -5,6 +5,10 @@ import '../core/constants/app_colors.dart';
 import '../models/item_model.dart';
 import 'bounty_badge.dart';
 
+/// **ItemCard (Widget Kartu Barang)**
+/// Komponen reusable yang menampilkan ringkasan informasi barang dalam bentuk kartu.
+/// Memuat foto thumbnail (via CachedNetworkImage), judul, deskripsi singkat, 
+/// serta badge kategori dan bounty.
 class ItemCard extends StatelessWidget {
   final ItemModel item;
   final VoidCallback onTap;

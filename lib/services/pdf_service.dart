@@ -3,8 +3,13 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../models/item_model.dart';
 
+/// **PdfService**
+/// Layanan utilitas untuk membuat (generate) dokumen PDF.
+/// Digunakan untuk membuat "Sertifikat Serah Terima Barang" sebagai bukti fisik
+/// atau digital bahwa barang telah dikembalikan dari penemu ke pemilik asli.
 class PdfService {
-  /// Generate dan download PDF Sertifikat Serah Terima
+  /// **Fungsi generateSertifikat**
+  /// Membuat layout PDF menggunakan package `pdf` dan memicu dialog Print/Share bawaan OS menggunakan `printing`.
   static Future<void> generateSertifikat({
     required ItemModel item,
     required String namaOwner,

@@ -6,6 +6,9 @@ import '../core/constants/firestore_paths.dart';
 final firestoreProvider = Provider<FirebaseFirestore>((ref) => FirebaseFirestore.instance);
 
 // ── Filter State ──────────────────────────────────────────────────────────────
+/// **ItemFilter**
+/// Kelas model untuk menyimpan status filter pencarian di halaman utama (Dashboard).
+/// Berfungsi agar user bisa menyaring tampilan barang berdasarkan Kategori, Tipe (Hilang/Temu), atau yang ada Bountynya.
 class ItemFilter {
   final String? kategori;
   final TipeLaporan? tipe;
@@ -34,6 +37,10 @@ class ItemFilter {
 final itemFilterProvider = StateProvider<ItemFilter>((ref) => const ItemFilter());
 
 // ── Active Items Stream (Dashboard) ──────────────────────────────────────────
+/// **activeItemsProvider**
+/// Stream yang mengambil daftar barang aktif dari Firestore (hanya yang sudah di-approve admin).
+/// Menggabungkan data dari Firestore dengan filter lokal yang diatur user (`itemFilterProvider`).
+/// Dibatasi (limit) 30 item untuk menghemat kuota baca.
 final activeItemsProvider = StreamProvider<List<ItemModel>>((ref) {
   final filter = ref.watch(itemFilterProvider);
   final db = ref.watch(firestoreProvider);
@@ -89,6 +96,8 @@ final itemsRepositoryProvider = Provider<ItemsRepository>((ref) {
   return ItemsRepository(db: ref.watch(firestoreProvider));
 });
 
+/// **ItemsRepository**
+/// Menangani fungsi tulis (Write) ke koleksi 'items' dan 'claims' di Firestore.
 class ItemsRepository {
   final FirebaseFirestore _db;
   ItemsRepository({required FirebaseFirestore db}) : _db = db;

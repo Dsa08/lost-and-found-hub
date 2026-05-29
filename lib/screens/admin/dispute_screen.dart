@@ -5,9 +5,45 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/firestore_paths.dart';
 import '../../../providers/admin_provider.dart';
 
-class DisputeScreen extends ConsumerWidget {
+/// **DisputeScreen (Resolusi Sengketa)**
+/// Layar ini digunakan oleh Admin untuk menengahi masalah antara Pelapor (Reporter) dan Terlapor (Accused).
+/// Misalnya: Terlapor bilang barang sudah dikembalikan, tapi Pelapor bilang belum terima.
+///
+/// REFAKTOR: Sebelumnya menggunakan `allDisputesProvider` yang men-download SELURUH data sengketa.
+/// Sekarang menggunakan `paginatedDisputesProvider` yang mengambil data 20 per halaman.
+class DisputeScreen extends ConsumerStatefulWidget {
   const DisputeScreen({super.key});
 
+  @override
+  ConsumerState<DisputeScreen> createState() => _DisputeScreenState();
+}
+
+class _DisputeScreenState extends ConsumerState<DisputeScreen> {
+  final _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  /// Infinite scroll: muat halaman berikutnya saat mendekati ujung bawah
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      ref.read(paginatedDisputesProvider.notifier).loadNextPage();
+    }
+  }
+
+  /// Fungsi utama untuk mengeksekusi penyelesaian sengketa (Resolusi).
+  /// Fungsi ini menggunakan **Firestore Batch** agar update di tabel 'disputes' dan 'items'
+  /// terjadi secara bersamaan (Atomic). Jika salah satu gagal, semuanya batal (mencegah data korup).
   Future<void> _resolveDispute(
     BuildContext context,
     String disputeId,
@@ -36,21 +72,27 @@ class DisputeScreen extends ConsumerWidget {
       ),
     );
 
-    if (resolution == null) return;
+    if (resolution == null) return; // Batal jika admin menutup pop-up tanpa memilih
 
+    // Menggunakan WriteBatch untuk transaksi database yang aman
     final batch = FirebaseFirestore.instance.batch();
 
+    // 1. Update status sengketa menjadi selesai (Resolved) dan catat keputusannya
     batch.update(FirebaseFirestore.instance.collection(FirestorePaths.disputes).doc(disputeId), {
       'status': 'Resolved',
       'resolution': resolution,
       'resolved_at': FieldValue.serverTimestamp(),
     });
 
+    // 2. Update status barang dan status escrow (uang jaminan)
+    // Jika Refund -> poin kembali ke pelapor, status barang kembali 'active' (belum selesai)
+    // Jika Release -> poin cair ke penemu, status barang 'resolved' (selesai)
     batch.update(FirebaseFirestore.instance.collection(FirestorePaths.items).doc(itemId), {
       'status': resolution == 'Refund_Owner' ? 'active' : 'resolved',
       'escrow_status': resolution == 'Refund_Owner' ? 'refunded' : 'released',
     });
 
+    // Eksekusi semua update sekaligus
     await batch.commit();
 
     if (context.mounted) {
@@ -61,13 +103,21 @@ class DisputeScreen extends ConsumerWidget {
           behavior: SnackBarBehavior.floating,
         ),
       );
+      // Refresh data setelah resolve
+      ref.read(paginatedDisputesProvider.notifier).refresh();
     }
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final disputesAsync = ref.watch(allDisputesProvider);
+  Widget build(BuildContext context) {
+    // REFAKTOR: Menggunakan paginatedDisputesProvider alih-alih allDisputesProvider
+    final disputesState = ref.watch(paginatedDisputesProvider);
     final isDesktop = MediaQuery.of(context).size.width >= 600;
+
+    // Pisahkan Open dan Resolved
+    final openDocs = disputesState.items.where((d) => (d.data())['status'] == 'Open').toList();
+    final resolvedDocs = disputesState.items.where((d) => (d.data())['status'] != 'Open').toList();
+    final allDocs = [...openDocs, ...resolvedDocs];
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -76,10 +126,8 @@ class DisputeScreen extends ConsumerWidget {
         backgroundColor: const Color(0xFF1A1A2E),
         foregroundColor: Colors.white,
       ),
-      body: disputesAsync.when(
-        data: (snapshot) {
-          if (snapshot.docs.isEmpty) {
-            return Center(
+      body: allDocs.isEmpty && !disputesState.isLoading
+          ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -97,42 +145,62 @@ class DisputeScreen extends ConsumerWidget {
                   const Text('Semua berjalan lancar saat ini.', style: TextStyle(color: AppColors.textHint, fontSize: 13)),
                 ],
               ),
-            );
-          }
-
-          // Pisahkan Open dan Resolved
-          final openDocs = snapshot.docs.where((d) => d['status'] == 'Open').toList();
-          final resolvedDocs = snapshot.docs.where((d) => d['status'] != 'Open').toList();
-          final allDocs = [...openDocs, ...resolvedDocs];
-
-          if (isDesktop) {
-            return GridView.builder(
-              padding: const EdgeInsets.all(24),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 20,
-                mainAxisSpacing: 20,
-                mainAxisExtent: 310,
-              ),
-              itemCount: allDocs.length,
-              itemBuilder: (ctx, i) => _buildDisputeCard(context, allDocs[i]),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: allDocs.length,
-            itemBuilder: (ctx, i) => _buildDisputeCard(context, allDocs[i]),
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (e, _) => Center(child: Text('$e')),
-      ),
+            )
+          : isDesktop
+              ? GridView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(24),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 20,
+                    mainAxisSpacing: 20,
+                    mainAxisExtent: 310,
+                  ),
+                  // +1 untuk loading indicator
+                  itemCount: allDocs.length + (disputesState.hasMore ? 1 : 0),
+                  itemBuilder: (ctx, i) {
+                    if (i >= allDocs.length) {
+                      return Center(
+                        child: disputesState.isLoading
+                            ? const CircularProgressIndicator(color: AppColors.primary)
+                            : TextButton.icon(
+                                onPressed: () => ref.read(paginatedDisputesProvider.notifier).loadNextPage(),
+                                icon: const Icon(Icons.expand_more_rounded),
+                                label: const Text('Muat Lebih Banyak'),
+                              ),
+                      );
+                    }
+                    return _buildDisputeCard(context, allDocs[i]);
+                  },
+                )
+              : ListView.builder(
+                  controller: _scrollController,
+                  padding: const EdgeInsets.all(16),
+                  // +1 untuk loading indicator
+                  itemCount: allDocs.length + (disputesState.hasMore ? 1 : 0),
+                  itemBuilder: (ctx, i) {
+                    if (i >= allDocs.length) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Center(
+                          child: disputesState.isLoading
+                              ? const CircularProgressIndicator(color: AppColors.primary)
+                              : TextButton.icon(
+                                  onPressed: () => ref.read(paginatedDisputesProvider.notifier).loadNextPage(),
+                                  icon: const Icon(Icons.expand_more_rounded),
+                                  label: const Text('Muat Lebih Banyak'),
+                                ),
+                        ),
+                      );
+                    }
+                    return _buildDisputeCard(context, allDocs[i]);
+                  },
+                ),
     );
   }
 
-  Widget _buildDisputeCard(BuildContext context, QueryDocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+  Widget _buildDisputeCard(BuildContext context, QueryDocumentSnapshot<Map<String, dynamic>> doc) {
+    final data = doc.data();
     final status = data['status'] as String? ?? 'Open';
     final isOpen = status == 'Open';
     final reporterId = data['reporter_id'] as String? ?? '';

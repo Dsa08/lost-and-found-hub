@@ -4,6 +4,9 @@ import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import '../../core/constants/app_colors.dart';
 
+/// **VideoPlayerScreen (Pemutar Video)**
+/// Layar penuh untuk memutar video bukti yang diunggah pelapor.
+/// Menggunakan kombinasi `video_player` (mesin pemutar) dan `chewie` (antarmuka kontrol UI).
 class VideoPlayerScreen extends StatefulWidget {
   final String videoUrl;
   final String title;
@@ -136,8 +139,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 }
 
-/// Widget thumbnail video yang bisa diklik untuk buka player
-/// Otomatis ambil thumbnail dari Cloudinary
+/// **VideoThumbnailWidget**
+/// Menampilkan pratinjau (thumbnail) dari video tanpa perlu mengunduh file video utuh.
+/// Otomatis mengambil frame pertama dari Cloudinary dengan trik mengubah ekstensi `.mp4` jadi `.jpg`.
 class VideoThumbnailWidget extends StatelessWidget {
   final String videoUrl;
   final String title;

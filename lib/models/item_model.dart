@@ -1,8 +1,24 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// Tipe laporan yang dibuat user.
 enum TipeLaporan { lost, found }
+
+/// **Status Laporan Barang (Siklus Hidup)**
+/// - `pendingApproval`: Laporan baru dibuat, menunggu admin (Moderasi) untuk disetujui agar tampil di publik.
+/// - `active`: Laporan tayang di beranda dan bisa dicari oleh orang lain.
+/// - `pendingMeetup`: Ada pihak yang mengklaim barang, sedang proses ketemuan (meetup).
+/// - `resolved`: Kasus selesai (barang kembali ke pemilik).
+/// - `expired`: Laporan ditolak admin atau masa berlakunya habis.
 enum ItemStatus { active, pendingApproval, pendingMeetup, resolved, expired }
+
+/// **Status Uang Jaminan (Escrow Poin)**
+/// - `none`: Laporan ini tidak ada bounty (imbalan) poin.
+/// - `locked`: Pelapor menyediakan bounty, poin sudah dipotong dari saldonya dan "ditahan" oleh sistem.
+/// - `released`: Kasus selesai sukses, poin yang ditahan dicairkan ke penemu barang.
+/// - `refunded`: Kasus gagal/dibatalkan/sengketa dimenangkan pelapor, poin dikembalikan ke pelapor.
 enum EscrowStatus { none, locked, released, refunded }
+
+/// Kategori jenis barang untuk memudahkan filter pencarian.
 enum KategoriBarang { elektronik, dompet, kunci, pakaian, dokumen, tas, lainnya }
 
 class ItemLocation {
@@ -29,26 +45,45 @@ class ItemLocation {
       };
 }
 
+/// **ItemModel**
+/// Merepresentasikan entitas laporan barang (baik barang hilang maupun temuan) di Firestore (koleksi 'items').
 class ItemModel {
+  /// ID Dokumen di Firestore.
   final String itemId;
+  /// UID pembuat laporan (bisa yang kehilangan, bisa yang menemukan).
   final String ownerId;
+  /// ID Admin yang meng-approve laporan ini (null jika belum di-approve).
   final String? adminId;
   final String judul;
   final String deskripsi;
   final KategoriBarang kategori;
+  /// List URL gambar bukti barang (di-host di Cloudinary/Storage).
   final List<String> fotoUrls;
-  final String? videoUrl;        // ← BARU: URL video bukti
+  /// URL video bukti (opsional).
+  final String? videoUrl;
+  /// Lokasi perkiraan barang hilang/ditemukan (Koordinat GPS & Nama Tempat).
   final ItemLocation lokasi;
   final DateTime tanggalKejadian;
   final DateTime createdAt;
   final TipeLaporan tipeLaporan;
   final ItemStatus status;
+  
+  // ── Fitur Bounty & Keamanan ──
+  /// Jumlah poin yang dijanjikan sebagai imbalan (Bounty). Jika 0 berarti sukarela.
   final int nominalBounty;
+  /// Status penahanan poin bounty saat ini.
   final EscrowStatus escrowStatus;
+  
+  /// (Opsional) Pertanyaan keamanan yang harus dijawab penemu untuk membuktikan barang itu benar miliknya.
   final String? securityQuestion;
+  /// Hash jawaban keamanan (MD5/Bcrypt) agar jawaban asli tidak terlihat di database.
   final String? securityAnswerHash;
+  
+  /// True jika admin sudah menekan tombol Approve di layar moderasi.
   final bool isApproved;
+  /// Jika sedang proses klaim (pendingMeetup), ini adalah ID dokumen dari koleksi 'claims'.
   final String? activeClaimId;
+  /// Jumlah orang yang melihat laporan ini (Statistik).
   final int viewCount;
 
   const ItemModel({

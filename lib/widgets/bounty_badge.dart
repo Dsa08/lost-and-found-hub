@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
 
+/// **BountyBadge**
+/// Widget untuk menampilkan jumlah poin (bounty) yang ditawarkan pada suatu barang.
+/// Otomatis tidak tampil jika poin <= 0. Memiliki dua ukuran: standard dan large.
 class BountyBadge extends StatelessWidget {
   final int poin;
   final bool large;
@@ -39,6 +42,9 @@ class BountyBadge extends StatelessWidget {
   }
 }
 
+/// **StatusBadge**
+/// Widget untuk menampilkan status dari sebuah barang atau laporan.
+/// Warna dan label akan otomatis menyesuaikan dengan status (misal: HILANG = merah, DITEMUKAN = hijau).
 class StatusBadge extends StatelessWidget {
   final String status;
   const StatusBadge({super.key, required this.status});

@@ -1,3 +1,4 @@
+import 'dart:async'; // Diperlukan untuk Timer (Debounce)
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,6 +6,14 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/firestore_paths.dart';
 import '../../../providers/admin_provider.dart';
 
+/// **UserManagementScreen**
+/// Layar ini dikhususkan untuk role Admin. Berfungsi untuk:
+/// 1. Menampilkan daftar pengguna (users) dengan PAGINATION (20 per halaman).
+/// 2. Melakukan pencarian user berdasarkan nama, username, atau email (dengan Debounce).
+/// 3. Mengelola tindakan admin terhadap user: Edit Poin, Edit Role, Suspend, dan Blokir.
+///
+/// REFAKTOR: Sebelumnya menggunakan `allUsersProvider` yang men-download SELURUH data user.
+/// Sekarang menggunakan `paginatedUsersProvider` yang mengambil data 20 per halaman.
 class UserManagementScreen extends ConsumerStatefulWidget {
   const UserManagementScreen({super.key});
 
@@ -13,9 +22,43 @@ class UserManagementScreen extends ConsumerStatefulWidget {
 }
 
 class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
+  // Kata kunci pencarian. Data akan disaring berdasarkan variabel ini.
   String _search = '';
+  
+  // Timer untuk fitur Debounce.
+  // Mencegah aplikasi melakukan filter berulang-ulang dengan sangat cepat setiap kali user mengetik 1 huruf.
+  // Filter baru akan dijalankan jika user berhenti mengetik selama 500 milidetik.
+  Timer? _debounceTimer;
 
-  // ── Edit Poin ──────────────────────────────────────────────────────────────
+  // ScrollController untuk mendeteksi saat user scroll ke bawah (infinite scroll)
+  final _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Pasang listener untuk infinite scroll
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel(); // Pastikan memory leak tidak terjadi saat layar ditutup
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  /// **_onScroll**
+  /// Dipanggil setiap kali user scroll. Jika sudah mendekati ujung bawah list,
+  /// otomatis muat halaman berikutnya.
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      // Muat halaman berikutnya saat mendekati ujung bawah (200px sebelum habis)
+      ref.read(paginatedUsersProvider.notifier).loadNextPage();
+    }
+  }
+
+  // ── Fungsi Aksi Admin ──────────────────────────────────────────────────────
   Future<void> _editPoin(BuildContext context, String userId, int currentPoin) async {
     final ctrl = TextEditingController(text: '$currentPoin');
     final result = await showDialog<int>(
@@ -40,6 +83,8 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('✅ Poin diubah menjadi $result'), backgroundColor: AppColors.statusActive, behavior: SnackBarBehavior.floating),
       );
+      // Refresh data setelah edit
+      ref.read(paginatedUsersProvider.notifier).refresh();
     }
   }
 
@@ -105,6 +150,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('✅ Role diubah ke ${result.toUpperCase()}'), backgroundColor: AppColors.statusActive, behavior: SnackBarBehavior.floating),
     );
+    ref.read(paginatedUsersProvider.notifier).refresh();
   }
 
   // ── Suspend User ───────────────────────────────────────────────────────────
@@ -186,6 +232,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
+      ref.read(paginatedUsersProvider.notifier).refresh();
     }
   }
 
@@ -222,6 +269,7 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
           behavior: SnackBarBehavior.floating,
         ),
       );
+      ref.read(paginatedUsersProvider.notifier).refresh();
     }
   }
 
@@ -339,8 +387,19 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final usersAsync = ref.watch(allUsersProvider);
+    // REFAKTOR: Menggunakan paginatedUsersProvider alih-alih allUsersProvider
+    final usersState = ref.watch(paginatedUsersProvider);
     final isDesktop = MediaQuery.of(context).size.width >= 600;
+
+    // Filter data yang sudah dimuat berdasarkan kata kunci pencarian (client-side filter)
+    final filteredDocs = _search.isEmpty
+        ? usersState.items
+        : usersState.items.where((doc) {
+            final data = doc.data();
+            return (data['nama'] ?? '').toString().toLowerCase().contains(_search) ||
+                (data['username'] ?? '').toString().toLowerCase().contains(_search) ||
+                (data['email'] ?? '').toString().toLowerCase().contains(_search);
+          }).toList();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -365,7 +424,15 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 480),
                     child: TextField(
-                      onChanged: (v) => setState(() => _search = v.toLowerCase()),
+                      // Menerapkan fitur Debounce saat user mengetik
+                      onChanged: (v) {
+                        // Jika ada timer yang sedang berjalan, batalkan
+                        if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+                        // Buat timer baru. Jika tidak ada ketikan selama 500ms, baru jalankan setState
+                        _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+                          setState(() => _search = v.toLowerCase());
+                        });
+                      },
                       decoration: InputDecoration(
                         hintText: 'Cari user berdasarkan nama, username, atau email...',
                         hintStyle: const TextStyle(fontSize: 13, color: AppColors.textHint),
@@ -380,23 +447,31 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                     ),
                   ),
                 ),
-                if (isDesktop) ..._buildUserCount(usersAsync),
+                if (isDesktop) ...[ 
+                  const SizedBox(width: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.people_rounded, size: 16, color: AppColors.primary),
+                        const SizedBox(width: 6),
+                        Text('${usersState.items.length} dimuat', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary)),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           Expanded(
-            child: usersAsync.when(
-              data: (snapshot) {
-                final docs = snapshot.docs.where((doc) {
-                  final data = doc.data();
-                  if (_search.isEmpty) return true;
-                  return (data['nama'] ?? '').toString().toLowerCase().contains(_search) ||
-                      (data['username'] ?? '').toString().toLowerCase().contains(_search) ||
-                      (data['email'] ?? '').toString().toLowerCase().contains(_search);
-                }).toList();
-
-                if (docs.isEmpty) {
-                  return Center(
+            child: filteredDocs.isEmpty && !usersState.isLoading
+                ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -412,99 +487,85 @@ class _UserManagementScreenState extends ConsumerState<UserManagementScreen> {
                         const Text('Tidak ada user ditemukan', style: TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
                       ],
                     ),
-                  );
-                }
+                  )
+                : ListView.builder(
+                    controller: _scrollController,
+                    padding: EdgeInsets.symmetric(horizontal: isDesktop ? 24 : 16),
+                    // +1 untuk loading indicator di bawah
+                    itemCount: filteredDocs.length + (usersState.hasMore ? 1 : 0),
+                    itemBuilder: (ctx, i) {
+                      // Item terakhir: tampilkan loading indicator atau tombol "Muat Lebih"
+                      if (i >= filteredDocs.length) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 20),
+                          child: Center(
+                            child: usersState.isLoading
+                                ? const CircularProgressIndicator(color: AppColors.primary)
+                                : TextButton.icon(
+                                    onPressed: () => ref.read(paginatedUsersProvider.notifier).loadNextPage(),
+                                    icon: const Icon(Icons.expand_more_rounded),
+                                    label: const Text('Muat Lebih Banyak'),
+                                  ),
+                          ),
+                        );
+                      }
 
-                return ListView.builder(
-                  padding: EdgeInsets.symmetric(horizontal: isDesktop ? 24 : 16),
-                  itemCount: docs.length,
-                  itemBuilder: (ctx, i) {
-                    final data = docs[i].data();
-                    final userId = docs[i].id;
-                    final isBlocked = data['is_blocked'] == true;
-                    final isSuspended = data['is_suspended'] == true;
+                      final data = filteredDocs[i].data();
+                      final userId = filteredDocs[i].id;
+                      final isBlocked = data['is_blocked'] == true;
+                      final isSuspended = data['is_suspended'] == true;
 
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isBlocked
-                              ? AppColors.error.withValues(alpha: 0.3)
-                              : AppColors.divider.withValues(alpha: 0.5),
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isBlocked
+                                ? AppColors.error.withValues(alpha: 0.3)
+                                : AppColors.divider.withValues(alpha: 0.5),
+                          ),
+                          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6, offset: const Offset(0, 2))],
                         ),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 6, offset: const Offset(0, 2))],
-                      ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                        leading: CircleAvatar(
-                          backgroundColor: isBlocked ? AppColors.error : AppColors.primary,
-                          child: Text((data['nama'] as String? ?? 'U')[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
-                        ),
-                        title: Row(
-                          children: [
-                            Flexible(child: Text(data['nama'] ?? '-', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14), overflow: TextOverflow.ellipsis)),
-                            const SizedBox(width: 6),
-                            if (isBlocked) const _StatusChip(label: 'BLOKIR', color: AppColors.error)
-                            else if (isSuspended) const _StatusChip(label: 'SUSPEND', color: AppColors.statusPending),
-                          ],
-                        ),
-                        subtitle: Row(
-                          children: [
-                            Text('@${data['username'] ?? '-'}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
-                            const SizedBox(width: 8),
-                            const Icon(Icons.star_rounded, size: 12, color: AppColors.bounty),
-                            Text(' ${data['total_poin'] ?? 0}', style: const TextStyle(fontSize: 11, color: AppColors.bounty, fontWeight: FontWeight.w600)),
-                            if (isDesktop) ...[
-                              const SizedBox(width: 12),
-                              Text(data['email'] ?? '', style: const TextStyle(fontSize: 11, color: AppColors.textHint)),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                          leading: CircleAvatar(
+                            backgroundColor: isBlocked ? AppColors.error : AppColors.primary,
+                            child: Text((data['nama'] as String? ?? 'U')[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                          ),
+                          title: Row(
+                            children: [
+                              Flexible(child: Text(data['nama'] ?? '-', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14), overflow: TextOverflow.ellipsis)),
+                              const SizedBox(width: 6),
+                              if (isBlocked) const _StatusChip(label: 'BLOKIR', color: AppColors.error)
+                              else if (isSuspended) const _StatusChip(label: 'SUSPEND', color: AppColors.statusPending),
                             ],
-                          ],
+                          ),
+                          subtitle: Row(
+                            children: [
+                              Text('@${data['username'] ?? '-'}', style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.star_rounded, size: 12, color: AppColors.bounty),
+                              Text(' ${data['total_poin'] ?? 0}', style: const TextStyle(fontSize: 11, color: AppColors.bounty, fontWeight: FontWeight.w600)),
+                              if (isDesktop) ...[
+                                const SizedBox(width: 12),
+                                Text(data['email'] ?? '', style: const TextStyle(fontSize: 11, color: AppColors.textHint)),
+                              ],
+                            ],
+                          ),
+                          trailing: IconButton(
+                            icon: const Icon(Icons.more_vert_rounded, color: AppColors.textSecondary),
+                            onPressed: () => _showUserDetail(context, data, userId),
+                          ),
+                          onTap: () => _showUserDetail(context, data, userId),
                         ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.more_vert_rounded, color: AppColors.textSecondary),
-                          onPressed: () => _showUserDetail(context, data, userId),
-                        ),
-                        onTap: () => _showUserDetail(context, data, userId),
-                      ),
-                    );
-                  },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-              error: (e, _) => Center(child: Text('$e')),
-            ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
     );
-  }
-
-  List<Widget> _buildUserCount(AsyncValue usersAsync) {
-    return [
-      const SizedBox(width: 16),
-      usersAsync.when(
-        data: (snapshot) => Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppColors.primaryLight,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.people_rounded, size: 16, color: AppColors.primary),
-              const SizedBox(width: 6),
-              Text('${snapshot.docs.length} user', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.primary)),
-            ],
-          ),
-        ),
-        loading: () => const SizedBox.shrink(),
-        error: (_, __) => const SizedBox.shrink(),
-      ),
-    ];
   }
 }
 

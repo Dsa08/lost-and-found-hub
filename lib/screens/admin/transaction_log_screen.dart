@@ -4,6 +4,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../providers/admin_provider.dart';
 
+/// **TransactionLogScreen (Log Transaksi Bounty / Poin)**
+/// Layar ini menampilkan riwayat aliran poin di sistem (Sistem Escrow).
+/// Sistem Escrow adalah penengah: Saat user A buat sayembara, poinnya 'dikunci' (Lock) oleh sistem.
+/// Nanti jika selesai, poin dicairkan ke penemu (Release) atau dikembalikan jika gagal (Refund).
 class TransactionLogScreen extends ConsumerStatefulWidget {
   const TransactionLogScreen({super.key});
 
@@ -12,7 +16,11 @@ class TransactionLogScreen extends ConsumerStatefulWidget {
 }
 
 class _TransactionLogScreenState extends ConsumerState<TransactionLogScreen> {
-  // null = semua, 'Escrow_Lock' / 'Escrow_Release' / 'Escrow_Refund'
+  // Filter pencarian:
+  // null = Tampilkan Semua
+  // 'Escrow_Lock' = Poin dipotong dari Pelapor dan ditahan sistem.
+  // 'Escrow_Release' = Poin diberikan ke Penemu karena barang berhasil kembali.
+  // 'Escrow_Refund' = Poin dikembalikan ke Pelapor karena sengketa / laporan kadaluarsa.
   String? _filterType;
 
   static const _filterOptions = [
@@ -92,18 +100,22 @@ class _TransactionLogScreenState extends ConsumerState<TransactionLogScreen> {
 
           final allDocs = snapshot.docs;
 
-          // Hitung summary
+          // ── Hitung Ringkasan (Summary) ──
+          // Karena data transaksi adalah list of documents, kita melooping semuanya
+          // untuk mendapatkan total poin yang terkunci, cair, dan kembali.
           int totalLocked = 0, totalReleased = 0, totalRefunded = 0;
           for (final doc in allDocs) {
             final data = doc.data();
             final type = data['type'] as String? ?? '';
             final amount = data['amount'] as int? ?? 0;
+            
             if (type == 'Escrow_Lock') totalLocked += amount;
             if (type == 'Escrow_Release') totalReleased += amount;
             if (type == 'Escrow_Refund') totalRefunded += amount;
           }
 
-          // Terapkan filter
+          // ── Terapkan Filter Tipe Transaksi ──
+          // _filterType diatur lewat tombol (FilterChip) di UI.
           final filtered = _filterType == null
               ? allDocs
               : allDocs.where((d) => d['type'] == _filterType).toList();

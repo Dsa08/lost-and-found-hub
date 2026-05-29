@@ -6,6 +6,10 @@ import '../../core/constants/firestore_paths.dart';
 import '../../models/item_model.dart';
 import '../../providers/auth_provider.dart';
 
+/// **ChatScreen (Layar Obrolan)**
+/// Memfasilitasi komunikasi langsung antara Pemilik Barang (Owner) dan Penemu (Finder).
+/// Chat ini hanya bisa diakses setelah klaim disetujui (Status: Pending Meetup),
+/// dan ditujukan untuk menyepakati lokasi dan waktu serah terima barang.
 class ChatScreen extends ConsumerStatefulWidget {
   final ItemModel item;
   final String otherUserId;
@@ -39,6 +43,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       .orderBy('created_at', descending: false)
       .snapshots();
 
+  /// **Fungsi _sendMessage**
+  /// Mengirim pesan ke koleksi sub-koleksi `chats` pada dokumen barang ini.
   Future<void> _sendMessage() async {
     final text = _messageCtrl.text.trim();
     if (text.isEmpty || _isSending) return;

@@ -7,10 +7,17 @@ import '../../core/utils/security_utils.dart';
 import '../../models/item_model.dart';
 import '../../providers/items_provider.dart';
 
+/// **ClaimReviewScreen (Layar Peninjauan Klaim)**
+/// Layar ini hanya bisa diakses oleh Pemilik (Owner) barang.
+/// Digunakan untuk melihat daftar orang yang mengaku menemukan barangnya,
+/// memverifikasi jawaban keamanan (Security Question) yang mereka masukkan,
+/// lalu menekan tombol 'Approve' atau 'Tolak'.
 class ClaimReviewScreen extends ConsumerWidget {
   final ItemModel item;
   const ClaimReviewScreen({super.key, required this.item});
 
+  /// Mengambil daftar klaim secara realtime dari sub-koleksi `claims` pada item ini
+  /// yang statusnya masih 'waiting'.
   Stream<QuerySnapshot> get _claimsStream => FirebaseFirestore.instance
       .collection(FirestorePaths.itemClaims(item.itemId))
       .where('status', isEqualTo: 'waiting')
@@ -25,6 +32,12 @@ class ClaimReviewScreen extends ConsumerWidget {
     return doc.data();
   }
 
+  /// **Fungsi _approveClaim**
+  /// Jika owner yakin orang ini benar penemunya (jawaban benar).
+  /// Ini akan memanggil `ItemsRepository.approveClaim` yang mana:
+  /// 1. Mengubah status klaim jadi 'approved'.
+  /// 2. Mengubah status barang jadi 'pendingMeetup'.
+  /// 3. Mengaktifkan fitur Chat antara owner dan finder.
   Future<void> _approveClaim(
     BuildContext context,
     WidgetRef ref,
@@ -79,6 +92,9 @@ class ClaimReviewScreen extends ConsumerWidget {
     }
   }
 
+  /// **Fungsi _rejectClaim**
+  /// Menolak klaim palsu (biasanya karena jawaban sekuriti salah).
+  /// Mengubah status klaim menjadi 'rejected'.
   Future<void> _rejectClaim(
     BuildContext context,
     WidgetRef ref,

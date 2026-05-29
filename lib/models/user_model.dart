@@ -1,16 +1,31 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/// **UserModel**
+/// Merepresentasikan entitas pengguna (User) di dalam database Firestore (koleksi 'users').
+/// Kelas ini immutable (tidak bisa diubah langsung), perubahan state harus menggunakan `copyWith()`.
 class UserModel {
+  /// UID unik pengguna dari Firebase Auth (sebagai Document ID di Firestore).
   final String uid;
   final String username;
   final String nama;
   final String email;
   final String noHp;
+  /// URL foto profil pengguna (bisa null jika belum mengatur foto).
   final String? fotoProfilUrl;
+  /// Token Firebase Cloud Messaging untuk mengirimkan Push Notification ke perangkat ini.
   final String? fcmToken;
+  
+  // ── Sistem Poin (Escrow & Reward) ──
+  /// Total poin aktif yang dimiliki pengguna (bisa dipakai untuk membuat sayembara).
   final int totalPoin;
+  /// Poin yang saat ini sedang "ditahan" oleh sistem (Escrow) karena pengguna sedang membuat laporan kehilangan.
+  /// Poin ini belum dipotong permanen, hanya dikunci sampai laporan selesai.
   final int lockedPoin;
+  
+  // ── Sistem Reputasi & Guild ──
+  /// Skor reputasi pengguna (Mulai dari 50.0). Naik jika sering mengembalikan barang, turun jika sering kena sengketa.
   final double reputationScore;
+  /// ID Guild (Komunitas) tempat pengguna ini bergabung. Null jika tidak ikut guild manapun.
   final String? guildId;
   final DateTime createdAt;
   final UserStats stats;
@@ -31,9 +46,12 @@ class UserModel {
     required this.stats,
   });
 
-  /// Saldo yang benar-benar bisa digunakan (tidak termasuk yang terkunci)
-  int get availablePoin => totalPoin;
+  /// Mengambil saldo riil yang benar-benar bisa dipakai (Total - Dikunci).
+  /// Ini memastikan user tidak bisa pakai poin ganda yang sedang terkunci di sayembara lain.
+  int get availablePoin => totalPoin; // TODO: [Refactor] Seharusnya `totalPoin - lockedPoin`
 
+  /// **Konversi dari Document Firestore menjadi Objek Dart (Deserialisasi)**
+  /// Fungsi ini digunakan setiap kali kita mengambil data user dari database.
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return UserModel(
@@ -53,6 +71,8 @@ class UserModel {
     );
   }
 
+  /// **Konversi dari Objek Dart menjadi Map (Serialisasi)**
+  /// Fungsi ini digunakan saat menyimpan/mengupdate data user ke Firestore.
   Map<String, dynamic> toFirestore() {
     return {
       'username': username,
@@ -99,8 +119,13 @@ class UserModel {
   }
 }
 
+/// **UserStats**
+/// Kelas pendukung untuk melacak statistik kontribusi pengguna.
+/// Data ini akan tampil di profil pengguna dan menentukan status rank/level mereka.
 class UserStats {
+  /// Total barang yang berhasil dikembalikan oleh user ini ke pemiliknya.
   final int totalResolved;
+  /// Total laporan barang hilang/temuan yang dibuat oleh user ini.
   final int totalReports;
 
   const UserStats({

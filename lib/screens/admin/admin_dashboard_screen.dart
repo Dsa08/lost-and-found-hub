@@ -11,6 +11,11 @@ import 'user_management_screen.dart';
 import 'dispute_screen.dart';
 import 'transaction_log_screen.dart';
 
+/// **AdminDashboardScreen (Layar Utama Admin)**
+/// Ini adalah layar induk (wrapper) untuk seluruh panel admin.
+/// Layar ini mendukung responsivitas:
+/// - Desktop: Menampilkan Sidebar di kiri dan konten di kanan.
+/// - Mobile: Menampilkan BottomNavigationBar di bawah.
 class AdminDashboardScreen extends ConsumerStatefulWidget {
   const AdminDashboardScreen({super.key});
 
@@ -596,8 +601,9 @@ class _AdminHomePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(appStatsProvider);
     final pendingAsync = ref.watch(pendingItemsProvider);
-    final disputesAsync = ref.watch(allDisputesProvider);
-    final usersAsync = ref.watch(allUsersProvider);
+    // REFAKTOR: Tidak lagi menggunakan allDisputesProvider/allUsersProvider
+    // yang men-download SELURUH data. Sekarang angka diambil dari appStatsProvider
+    // yang menggunakan count() query (efisien, tanpa download dokumen).
     final user = ref.watch(currentUserProvider).valueOrNull;
     final isDesktop = MediaQuery.of(context).size.width >= 600;
 
@@ -742,8 +748,9 @@ class _AdminHomePage extends ConsumerWidget {
                     icon: Icons.gavel_rounded,
                     color: AppColors.statusLost,
                     label: 'Sengketa\nAktif',
-                    value: disputesAsync.when(
-                      data: (s) => '${s.docs.where((d) => d['status'] == 'Open').length}',
+                    // REFAKTOR: Menggunakan count() dari appStatsProvider
+                    value: statsAsync.when(
+                      data: (s) => '${s.openDisputes}',
                       loading: () => '...',
                       error: (_, __) => '!',
                     ),
@@ -757,8 +764,9 @@ class _AdminHomePage extends ConsumerWidget {
                     icon: Icons.people_rounded,
                     color: AppColors.primary,
                     label: 'Total\nUser',
-                    value: usersAsync.when(
-                      data: (s) => '${s.docs.length}',
+                    // REFAKTOR: Menggunakan count() dari appStatsProvider
+                    value: statsAsync.when(
+                      data: (s) => '${s.totalUsers}',
                       loading: () => '...',
                       error: (_, __) => '!',
                     ),

@@ -1,0 +1,290 @@
+rules_version = '2';
+
+// ══════════════════════════════════════════════════════════════════════════════
+// FIREBASE SECURITY RULES — Lost & Found Hub
+// ══════════════════════════════════════════════════════════════════════════════
+//
+// File ini mengontrol SIAPA yang boleh MEMBACA dan MENULIS data di Firestore.
+// Ini adalah lapisan pertahanan terakhir — meskipun hacker berhasil mem-bypass
+// aplikasi Flutter, rules ini tetap mencegah akses ilegal ke database.
+//
+// PRINSIP UTAMA:
+// 1. Default DENY — semua akses ditolak kecuali secara eksplisit diizinkan.
+// 2. Least Privilege — user hanya bisa akses data yang mereka butuhkan.
+// 3. Admin Override — admin bisa membaca/menulis ke hampir semua koleksi.
+//
+// CARA DEPLOY:
+//   firebase deploy --only firestore:rules
+//
+// ══════════════════════════════════════════════════════════════════════════════
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helper Functions ────────────────────────────────────────────────────
+    
+    /// Cek apakah request berasal dari user yang sudah login
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    /// Cek apakah user yang request adalah pemilik dokumen (berdasarkan UID)
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    /// Cek apakah user yang request memiliki role admin
+    /// Dilakukan dengan mengecek apakah UID-nya ada di koleksi 'admins'
+    function isAdmin() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // ── KOLEKSI: users ──────────────────────────────────────────────────────
+    // Menyimpan profil, poin, statistik, dan status akun pengguna.
+    // ══════════════════════════════════════════════════════════════════════════
+    match /users/{userId} {
+      // READ: User hanya bisa membaca profil dirinya sendiri.
+      //        Admin bisa membaca semua profil (untuk User Management).
+      allow read: if isOwner(userId) || isAdmin();
+
+      // CREATE: User baru bisa membuat dokumen profil untuk dirinya sendiri saat register.
+      //         UID dokumen harus sama dengan UID auth.
+      allow create: if isOwner(userId) &&
+        request.resource.data.keys().hasAll(['nama', 'username', 'email']) &&
+        request.resource.data.total_poin == 0;
+
+      // UPDATE: User bisa mengubah profil sendiri (nama, username, no_hp).
+      //         Admin bisa mengubah semua field (edit poin, role, suspend, blokir).
+      //         User biasa TIDAK BOLEH mengubah field sensitif (total_poin, role, is_blocked, dll).
+      allow update: if isAdmin() || (
+        isOwner(userId) &&
+        // Daftar field yang TIDAK BOLEH diubah oleh user biasa
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'total_poin', 'locked_poin', 'role', 
+          'is_blocked', 'blocked_at',
+          'is_suspended', 'suspended_until', 'suspend_reason'
+        ])
+      );
+
+      // DELETE: Tidak ada yang boleh menghapus akun dari client.
+      allow delete: if false;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // ── KOLEKSI: items ──────────────────────────────────────────────────────
+    // Menyimpan laporan barang hilang/temuan.
+    // ══════════════════════════════════════════════════════════════════════════
+    match /items/{itemId} {
+      // READ: Semua user yang login bisa membaca item yang sudah di-approve.
+      //        Pemilik bisa membaca item miliknya sendiri (termasuk yang belum di-approve).
+      //        Admin bisa membaca semua item (untuk moderasi).
+      allow read: if isAuthenticated() && (
+        resource.data.is_approved == true ||
+        resource.data.owner_id == request.auth.uid ||
+        isAdmin()
+      );
+
+      // CREATE: User yang login bisa membuat laporan baru.
+      //         Validasi: judul wajib ada, is_approved harus false (menunggu moderasi),
+      //         dan owner_id harus sama dengan UID pembuat.
+      allow create: if isAuthenticated() &&
+        request.resource.data.owner_id == request.auth.uid &&
+        request.resource.data.is_approved == false &&
+        request.resource.data.judul is string &&
+        request.resource.data.judul.size() > 0;
+
+      // UPDATE: Admin bisa update semua (moderasi: approve/reject).
+      //         Pemilik bisa update item miliknya sendiri.
+      allow update: if isAdmin() ||
+        (isAuthenticated() && resource.data.owner_id == request.auth.uid);
+
+      // DELETE: Hanya admin yang boleh menghapus item.
+      allow delete: if isAdmin();
+
+      // ── SUB-KOLEKSI: claims ──────────────────────────────────────────────
+      // Menyimpan klaim kepemilikan dari Finder.
+      match /claims/{claimId} {
+        // READ: Pemilik barang bisa melihat semua klaim masuk.
+        //        Pengirim klaim bisa melihat klaimnya sendiri.
+        //        Admin bisa melihat semua.
+        allow read: if isAuthenticated() && (
+          get(/databases/$(database)/documents/items/$(itemId)).data.owner_id == request.auth.uid ||
+          resource.data.finder_id == request.auth.uid ||
+          isAdmin()
+        );
+
+        // CREATE: User login bisa mengajukan klaim. 
+        //         finder_id harus sama dengan UID pengirim.
+        //         Status awal harus 'waiting'.
+        allow create: if isAuthenticated() &&
+          request.resource.data.finder_id == request.auth.uid &&
+          request.resource.data.status == 'waiting';
+
+        // UPDATE: Pemilik barang bisa approve/reject klaim.
+        //         Admin juga bisa.
+        allow update: if isAdmin() ||
+          (isAuthenticated() &&
+           get(/databases/$(database)/documents/items/$(itemId)).data.owner_id == request.auth.uid);
+
+        // DELETE: Tidak diizinkan (klaim harus tetap ada sebagai audit trail).
+        allow delete: if false;
+      }
+
+      // ── SUB-KOLEKSI: chats ───────────────────────────────────────────────
+      // Chat antara Owner dan Finder setelah klaim disetujui.
+      match /chats/{chatId} {
+        // READ & WRITE: Hanya pemilik barang, finder yang disetujui, dan admin.
+        // Catatan: Idealnya cek active_claim_id, tapi untuk kesederhanaan,
+        // kita izinkan semua user login yang terlibat di item ini.
+        allow read: if isAuthenticated() && (
+          get(/databases/$(database)/documents/items/$(itemId)).data.owner_id == request.auth.uid ||
+          isAdmin() ||
+          // Izinkan finder yang sudah di-approve
+          get(/databases/$(database)/documents/items/$(itemId)).data.active_claim_id == request.auth.uid
+        );
+
+        allow create: if isAuthenticated() &&
+          request.resource.data.sender_id == request.auth.uid;
+
+        // UPDATE & DELETE: Chat yang sudah dikirim tidak boleh diubah/dihapus.
+        allow update, delete: if false;
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // ── KOLEKSI: guilds ─────────────────────────────────────────────────────
+    // Menyimpan data Guild / Komunitas.
+    // ══════════════════════════════════════════════════════════════════════════
+    match /guilds/{guildId} {
+      // READ: Semua user login bisa melihat daftar guild (Leaderboard publik).
+      allow read: if isAuthenticated();
+
+      // CREATE: User login bisa membuat guild baru.
+      allow create: if isAuthenticated() &&
+        request.resource.data.nama is string &&
+        request.resource.data.nama.size() > 0;
+
+      // UPDATE: Admin bisa update semua.
+      //         Leader guild bisa update (via pengecekan di sub-koleksi members).
+      //         Catatan: Untuk kesederhanaan, kita izinkan semua user login update 
+      //         (karena pengecekan leader ada di sisi aplikasi).
+      //         // TODO: [Security] Perkuat dengan cek role 'Leader' di sub-koleksi members.
+      allow update: if isAuthenticated();
+
+      // DELETE: Hanya admin.
+      allow delete: if isAdmin();
+
+      // ── SUB-KOLEKSI: members ─────────────────────────────────────────────
+      match /members/{memberId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow update: if isAuthenticated();
+        allow delete: if isAdmin() || isOwner(memberId);
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // ── KOLEKSI: verifications ───────────────────────────────────────────────
+    // Menyimpan token QR untuk verifikasi serah terima barang.
+    // ══════════════════════════════════════════════════════════════════════════
+    match /verifications/{verifId} {
+      // READ: Hanya pihak yang terlibat (owner / finder) dan admin.
+      allow read: if isAuthenticated() && (
+        resource.data.owner_id == request.auth.uid ||
+        resource.data.finder_id == request.auth.uid ||
+        isAdmin()
+      );
+
+      // CREATE: User login bisa membuat token verifikasi.
+      //         finder_id harus sama dengan UID pembuat.
+      allow create: if isAuthenticated() &&
+        request.resource.data.finder_id == request.auth.uid;
+
+      // UPDATE: Pemilik barang bisa mengubah status (setelah scan QR).
+      //         Admin juga bisa.
+      allow update: if isAuthenticated() && (
+        resource.data.owner_id == request.auth.uid ||
+        isAdmin()
+      );
+
+      // DELETE: Tidak diizinkan.
+      allow delete: if false;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // ── KOLEKSI: disputes ───────────────────────────────────────────────────
+    // Menyimpan laporan sengketa antara user.
+    // ══════════════════════════════════════════════════════════════════════════
+    match /disputes/{disputeId} {
+      // READ: Admin bisa melihat semua sengketa.
+      //        User yang terlibat (reporter/accused) bisa melihat sengketa mereka.
+      allow read: if isAdmin() || (
+        isAuthenticated() && (
+          resource.data.reporter_id == request.auth.uid ||
+          resource.data.accused_id == request.auth.uid
+        )
+      );
+
+      // CREATE: User login bisa membuat laporan sengketa.
+      //         reporter_id harus sama dengan UID pembuat.
+      allow create: if isAuthenticated() &&
+        request.resource.data.reporter_id == request.auth.uid &&
+        request.resource.data.status == 'Open';
+
+      // UPDATE: Hanya admin yang bisa menyelesaikan sengketa (resolve).
+      allow update: if isAdmin();
+
+      // DELETE: Tidak diizinkan.
+      allow delete: if false;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // ── KOLEKSI: transaction_logs ────────────────────────────────────────────
+    // Log aliran poin (escrow, release, refund). SANGAT SENSITIF.
+    // ══════════════════════════════════════════════════════════════════════════
+    match /transaction_logs/{logId} {
+      // READ: Hanya admin yang boleh melihat log transaksi.
+      allow read: if isAdmin();
+
+      // WRITE: Log transaksi dibuat oleh sistem (saat QR scan / escrow release).
+      //        Untuk saat ini, kita izinkan user login yang terlibat untuk create.
+      //        // TODO: [Security] Pindahkan ke Cloud Functions agar log tidak bisa dimanipulasi.
+      allow create: if isAuthenticated();
+
+      // UPDATE & DELETE: Log tidak boleh diubah atau dihapus oleh siapa pun.
+      allow update, delete: if false;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // ── KOLEKSI: admins ─────────────────────────────────────────────────────
+    // Daftar UID yang memiliki akses admin. SAKRAL — tidak boleh diubah via app.
+    // ══════════════════════════════════════════════════════════════════════════
+    match /admins/{adminId} {
+      // READ: Hanya user yang mengecek dirinya sendiri (untuk login routing).
+      //        Atau admin (untuk melihat daftar admin lain).
+      allow read: if isOwner(adminId) || isAdmin();
+
+      // WRITE: TIDAK ADA yang boleh menulis ke koleksi ini dari client.
+      //        Penambahan admin hanya boleh dilakukan manual via Firebase Console.
+      allow create, update, delete: if false;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // ── KOLEKSI: rate_limits ────────────────────────────────────────────────
+    // Anti-spam: mencatat frekuensi aksi user.
+    // ══════════════════════════════════════════════════════════════════════════
+    match /rate_limits/{userId} {
+      // Hanya pemilik dokumen yang bisa baca/tulis rate limit miliknya.
+      allow read, write: if isOwner(userId);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // ── DEFAULT: Tolak semua akses yang tidak diatur di atas ─────────────────
+    // ══════════════════════════════════════════════════════════════════════════
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

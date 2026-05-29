@@ -10,6 +10,13 @@ import '../../providers/items_provider.dart';
 import '../../repositories/wallet_repository.dart';
 import '../../services/cloudinary_service.dart';
 
+/// **CreateItemScreen (Layar Buat Laporan)**
+/// Form untuk melaporkan barang hilang atau barang temuan.
+/// Di layar ini terjadi beberapa proses krusial:
+/// 1. Kompresi otomatis gambar (ImagePicker).
+/// 2. Upload file media ke Cloudinary.
+/// 3. Hashing jawaban keamanan (Security Question) agar aman.
+/// 4. Pemotongan saldo Poin secara atomik (Escrow) jika pelapor menambahkan Bounty.
 class CreateItemScreen extends ConsumerStatefulWidget {
   const CreateItemScreen({super.key});
 
@@ -133,6 +140,12 @@ class _CreateItemScreenState extends ConsumerState<CreateItemScreen> {
     setState(() => _videoFile = file);
   }
 
+  /// **Fungsi _submit (Proses Simpan Laporan)**
+  /// Alur Eksekusi:
+  /// 1. Validasi Input.
+  /// 2. Simpan draft awal ke Firestore (untuk mendapat ID Dokumen).
+  /// 3. Jika ada foto/video, upload ke Cloudinary menggunakan ID dokumen tadi sebagai nama folder, lalu update Firestore.
+  /// 4. Kunci poin (Escrow Lock) jika user memasukkan bounty.
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);

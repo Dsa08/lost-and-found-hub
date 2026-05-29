@@ -4,6 +4,9 @@ import './dashboard/dashboard_screen.dart';
 import './auth/login_screen.dart';
 import '../core/constants/app_colors.dart';
 
+/// **SplashScreen (Layar Pembuka)**
+/// Menampilkan logo aplikasi dengan animasi saat aplikasi baru saja dibuka.
+/// Berjalan selama ~2.5 detik sebelum mem-parsing status login dan melakukan navigasi.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -34,6 +37,9 @@ class _SplashScreenState extends State<SplashScreen>
     Future.delayed(const Duration(milliseconds: 2500), _navigate);
   }
 
+  /// **Fungsi _navigate**
+  /// Mengecek status autentikasi melalui Firebase Auth setelah animasi selesai.
+  /// Langsung mengalihkan ke Dashboard (jika login) atau LoginScreen (jika belum).
   void _navigate() {
     if (!mounted) return;
     final user = FirebaseAuth.instance.currentUser;

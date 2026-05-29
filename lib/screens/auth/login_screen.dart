@@ -9,6 +9,10 @@ import '../dashboard/dashboard_screen.dart';
 import '../admin/admin_dashboard_screen.dart';
 import 'register_screen.dart';
 
+/// **LoginScreen (Layar Masuk)**
+/// Layar autentikasi pertama saat aplikasi dibuka (jika belum login).
+/// Memeriksa role pengguna setelah berhasil login (Apakah dia Admin atau User biasa),
+/// lalu mengarahkannya ke dashboard yang sesuai.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -30,6 +34,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  /// **Fungsi _login**
+  /// Melakukan validasi form, memanggil `AuthRepository.login`, dan 
+  /// mengecek dokumen user di koleksi `admins` untuk menentukan arah navigasi.
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);

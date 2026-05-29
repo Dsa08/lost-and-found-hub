@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
 
+/// **CategoryFilter**
+/// Widget filter kategori berbentuk deretan tombol horizontal (chips) yang bisa di-scroll.
+/// Digunakan di halaman pencarian atau beranda untuk menyaring daftar barang.
 class CategoryFilter extends StatelessWidget {
   final String? selected;
   final void Function(String?) onChanged;

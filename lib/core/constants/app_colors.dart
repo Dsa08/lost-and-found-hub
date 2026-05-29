@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+/// **AppColors (Palet Warna Utama)**
+/// Menyimpan seluruh konstanta warna agar konsisten di seluruh aplikasi.
+/// Dikelompokkan berdasarkan fungsi (Primary, Status, Background, Guild).
 class AppColors {
   AppColors._();
 

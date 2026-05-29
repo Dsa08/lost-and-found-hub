@@ -12,6 +12,10 @@ final authStateProvider = StreamProvider<User?>((ref) {
 });
 
 // ── Current UserModel dari Firestore ─────────────────────────────────────────
+/// **currentUserProvider**
+/// Mendengarkan perubahan status login dari Firebase Auth, lalu mengambil profil pengguna
+/// dari koleksi 'users' di Firestore secara otomatis.
+/// Jika pengguna log out, stream ini akan mengembalikan nilai null.
 final currentUserProvider = StreamProvider<UserModel?>((ref) {
   final authState = ref.watch(authStateProvider);
   return authState.when(
@@ -44,7 +48,10 @@ class AuthRepository {
       : _auth = auth,
         _db = db;
 
-  // Register user baru
+  /// **Fungsi Register (Daftar Akun Baru)**
+  /// 1. Mengecek apakah username sudah dipakai orang lain.
+  /// 2. Membuat user di Firebase Authentication.
+  /// 3. Membuat dokumen profil di koleksi Firestore 'users' dengan bonus poin awal (100).
   Future<UserModel> register({
     required String email,
     required String password,

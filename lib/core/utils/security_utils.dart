@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
+/// **SecurityUtils (Utilitas Keamanan)**
+/// Berisi fungsi-fungsi kriptografi sederhana (seperti hashing SHA-256).
+/// Digunakan untuk meng-hash 'Security Question' agar jawaban tidak tersimpan dalam bentuk plain-text di database.
 class SecurityUtils {
   SecurityUtils._();
 

@@ -2,6 +2,10 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+/// **CloudinaryService**
+/// Layanan untuk meng-upload file media (Gambar dan Video) ke server Cloudinary.
+/// Kita menggunakan Cloudinary alih-alih Firebase Storage untuk menghemat kuota Firebase,
+/// karena Cloudinary menyediakan optimasi gambar otomatis dan gratis untuk skala kecil.
 class CloudinaryService {
   // ── Konfigurasi Cloudinary ──────────────────────────────────────────────────
   static const String _cloudName = 'dop5bvqiv';
@@ -12,7 +16,9 @@ class CloudinaryService {
   static const String _videoUploadUrl =
       'https://api.cloudinary.com/v1_1/$_cloudName/video/upload';
 
-  /// Upload satu foto, kembalikan URL publik
+  /// **Fungsi uploadImage**
+  /// Mengirim satu file gambar ke server Cloudinary menggunakan HTTP POST (Multipart).
+  /// Mengembalikan `secure_url` (link HTTPS publik) gambar tersebut jika berhasil.
   static Future<String> uploadImage(File imageFile, String itemId) async {
     final request = http.MultipartRequest('POST', Uri.parse(_imageUploadUrl));
 
@@ -46,7 +52,9 @@ class CloudinaryService {
     return urls;
   }
 
-  /// Upload video, kembalikan URL publik
+  /// **Fungsi uploadVideo**
+  /// Mengirim file video. Perlu diperhatikan bahwa resource_type diset ke 'video'.
+  /// Mengembalikan `secure_url` video.
   static Future<String> uploadVideo(File videoFile, String itemId) async {
     final request = http.MultipartRequest('POST', Uri.parse(_videoUploadUrl));
 

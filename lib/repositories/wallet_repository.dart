@@ -7,11 +7,18 @@ final walletRepositoryProvider = Provider<WalletRepository>((ref) {
   return WalletRepository(db: ref.watch(firestoreProvider));
 });
 
+/// **WalletRepository**
+/// Menangani operasi database terkait dompet pengguna dan Sistem Escrow (Poin).
+/// Menggunakan `_db.runTransaction` agar operasi baca-tulis aman dari konflik (Race Condition),
+/// memastikan saldo poin tidak akan mines jika ada dua transaksi bersamaan.
 class WalletRepository {
   final FirebaseFirestore _db;
   WalletRepository({required FirebaseFirestore db}) : _db = db;
 
-  /// Kunci poin ke escrow saat membuat laporan dengan bounty
+  /// **Fungsi lockEscrow (Kunci Saldo)**
+  /// Dipanggil saat user membuat laporan dengan menjanjikan hadiah (bounty).
+  /// Fungsi ini akan mengurangi `total_poin` user dan memindahkannya ke `locked_poin`.
+  /// Jika saldo tidak cukup, transaksi dibatalkan (throw Exception).
   Future<void> lockEscrow({
     required String userId,
     required String itemId,
@@ -52,7 +59,9 @@ class WalletRepository {
     });
   }
 
-  /// Refund poin jika item di-cancel atau expired
+  /// **Fungsi refundEscrow (Kembalikan Saldo)**
+  /// Dipanggil jika laporan ditolak admin, kadaluarsa, atau sengketa dimenangkan pelapor.
+  /// Mengurangi `locked_poin` dan menambahkannya kembali ke `total_poin` user.
   Future<void> refundEscrow({
     required String userId,
     required String itemId,

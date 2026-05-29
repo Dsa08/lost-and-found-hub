@@ -2,15 +2,24 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../core/constants/app_colors.dart';
 import 'package:flutter/material.dart';
 
+/// Tingkatan (Rank) dari sebuah Guild berdasarkan total reputasinya.
 enum GuildLevel { bronze, silver, gold, platinum, diamond }
 
+/// **GuildModel**
+/// Merepresentasikan entitas "Guild" (Komunitas/Kelompok) di Firestore (koleksi 'guilds').
+/// Guild memungkinkan banyak user bergabung dan mengumpulkan reputasi bersama.
 class GuildModel {
+  /// ID dokumen Guild di Firestore.
   final String guildId;
   final String namaGuild;
   final String deskripsi;
+  /// URL logo guild (di-host di Cloudinary/Storage).
   final String? fotoGuildUrl;
+  /// Tingkatan guild saat ini. Dikalkulasi secara dinamis dari `totalReputasi`.
   final GuildLevel levelGuild;
+  /// Total akumulasi reputasi dari semua anggota guild.
   final int totalReputasi;
+  /// Jumlah anggota yang bergabung di guild ini.
   final int memberCount;
   final String createdBy;
   final DateTime createdAt;
@@ -47,6 +56,8 @@ class GuildModel {
     }
   }
 
+  /// Logika Bisnis: Mengubah angka reputasi menjadi Rank (Level) Guild.
+  /// Otomatis terpanggil saat data ditarik dari Firestore.
   static GuildLevel _levelFromReputasi(int reputasi) {
     if (reputasi >= 5000) return GuildLevel.diamond;
     if (reputasi >= 2000) return GuildLevel.platinum;

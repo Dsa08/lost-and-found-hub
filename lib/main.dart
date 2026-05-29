@@ -8,6 +8,9 @@ import 'screens/auth/login_screen.dart';
 import 'screens/dashboard/dashboard_screen.dart';
 import 'screens/splash_screen.dart';
 
+/// **Titik Masuk Utama (Main Entry Point)**
+/// Menginisialisasi Firebase sebelum aplikasi berjalan.
+/// Membungkus aplikasi dengan `ProviderScope` agar Riverpod bisa digunakan secara global.
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
@@ -15,6 +18,8 @@ void main() async {
   runApp(const ProviderScope(child: LostFoundApp()));
 }
 
+/// **LostFoundApp (Root Widget)**
+/// Mengatur konfigurasi dasar aplikasi seperti Tema (Warna, Font) dan Halaman awal (Splash Screen).
 class LostFoundApp extends ConsumerWidget {
   const LostFoundApp({super.key});
 
@@ -89,7 +94,11 @@ class LostFoundApp extends ConsumerWidget {
   }
 }
 
-/// Gate: cek status login, arahkan ke halaman yang sesuai
+/// **AuthGate**
+/// Widget penengah (Gatekeeper) yang selalu mendengarkan status login user.
+/// Jika user sudah login (tidak null), arahkan ke `DashboardScreen`.
+/// Jika belum login, arahkan ke `LoginScreen`.
+/// Berguna untuk auto-login saat aplikasi pertama kali dibuka jika token masih valid.
 class AuthGate extends ConsumerWidget {
   const AuthGate({super.key});
 

@@ -9,6 +9,10 @@ import '../../models/item_model.dart';
 import '../../providers/auth_provider.dart';
 
 // ── QR Generator (untuk Finder) ───────────────────────────────────────────────
+/// **QrGeneratorScreen**
+/// Layar ini dibuka oleh Penemu (Finder).
+/// Men-generate sebuah QR Code unik yang terhubung ke dokumen `verifications` di Firestore.
+/// Token QR ini bersifat *Time-to-Live* (TTL) alias akan hangus dalam 5 menit.
 class QrGeneratorScreen extends ConsumerStatefulWidget {
   final ItemModel item;
   const QrGeneratorScreen({super.key, required this.item});
@@ -41,6 +45,8 @@ class _QrGeneratorScreenState extends ConsumerState<QrGeneratorScreen>
     super.dispose();
   }
 
+  /// **Fungsi _createVerification**
+  /// Membuat dokumen verifikasi baru dengan umur 5 menit.
   Future<void> _createVerification() async {
     final user = ref.read(currentUserProvider).valueOrNull;
     if (user == null) return;
@@ -206,6 +212,10 @@ class _QrGeneratorScreenState extends ConsumerState<QrGeneratorScreen>
 }
 
 // ── QR Scanner (untuk Owner) ──────────────────────────────────────────────────
+/// **QrScannerScreen**
+/// Layar ini dibuka oleh Pemilik Barang (Owner).
+/// Membuka kamera untuk memindai QR Code yang ditunjukkan oleh Finder saat bertemu.
+/// Jika QR valid, ini akan melepaskan (release) saldo poin escrow ke Finder.
 class QrScannerScreen extends ConsumerStatefulWidget {
   final ItemModel item;
   const QrScannerScreen({super.key, required this.item});
@@ -231,6 +241,13 @@ class _QrScannerScreenState extends ConsumerState<QrScannerScreen> {
     super.dispose();
   }
 
+  /// **Fungsi _processQr (Validasi & Transfer)**
+  /// 1. Cek apakah dokumen QR ada dan belum expired (TTL < 5 mnt).
+  /// 2. Cek apakah QR ini benar untuk barang yang sedang aktif ini.
+  /// 3. Jika Valid, jalankan Firebase Transaction (Atomik) untuk:
+  ///    - Kurangi poin terkunci (Owner)
+  ///    - Tambah poin utama (Finder)
+  ///    - Ubah status barang jadi 'resolved'.
   Future<void> _processQr(String verifId) async {
     if (_isProcessing || _scanned) return;
     setState(() => _isProcessing = true);

@@ -6,6 +6,8 @@ import '../../core/constants/firestore_paths.dart';
 import '../../models/guild_model.dart';
 import '../../providers/auth_provider.dart';
 
+/// **guildsProvider**
+/// Mengambil 20 Guild teratas berdasarkan total reputasi (Leaderboard).
 final guildsProvider = StreamProvider<List<GuildModel>>((ref) {
   return FirebaseFirestore.instance
       .collection(FirestorePaths.guilds)
@@ -15,6 +17,9 @@ final guildsProvider = StreamProvider<List<GuildModel>>((ref) {
       .map((s) => s.docs.map(GuildModel.fromFirestore).toList());
 });
 
+/// **GuildScreen (Layar Komunitas)**
+/// Layar untuk melihat daftar Guild (Leaderboard). 
+/// User yang belum punya Guild bisa membuat Guild baru dari layar ini.
 class GuildScreen extends ConsumerStatefulWidget {
   const GuildScreen({super.key});
 
@@ -26,6 +31,10 @@ class _GuildScreenState extends ConsumerState<GuildScreen> {
   final _namaCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
 
+  /// **Fungsi _createGuild**
+  /// Membuat guild baru dan otomatis menjadikan pembuatnya sebagai 'Leader'.
+  /// Menggunakan Firestore Batch/Update untuk memastikan data sinkron antara 
+  /// dokumen Guild, Sub-koleksi members, dan dokumen profil User.
   Future<void> _createGuild() async {
     final user = ref.read(currentUserProvider).valueOrNull;
     if (user == null) return;

@@ -44,7 +44,14 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Firebase - jangan pernah di-commit
+# Firebase & Security - Jangan pernah di-commit
 lib/firebase_options.dart
-google-services.json
-GoogleService-Info.plist
+**/google-services.json
+**/GoogleService-Info.plist
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+
+# Environment variables
+.env
+.env.*

@@ -11,6 +11,8 @@ import '../../widgets/bounty_badge.dart';
 import 'item_detail_screen.dart';
 import 'claim_review_screen.dart';
 
+/// **myItemsStreamProvider**
+/// Mengambil daftar laporan barang milik user yang sedang login.
 final myItemsStreamProvider = StreamProvider.family<List<ItemModel>, String>((ref, userId) {
   return FirebaseFirestore.instance
       .collection(FirestorePaths.items)
@@ -20,6 +22,9 @@ final myItemsStreamProvider = StreamProvider.family<List<ItemModel>, String>((re
       .map((s) => s.docs.map(ItemModel.fromFirestore).toList());
 });
 
+/// **MyItemsScreen (Layar Laporan Saya)**
+/// Menampilkan daftar barang yang pernah dilaporkan oleh user ini (sejarah/history laporan).
+/// Termasuk barang yang sedang antre moderasi, sudah aktif, ataupun yang sudah selesai.
 class MyItemsScreen extends ConsumerWidget {
   const MyItemsScreen({super.key});
 

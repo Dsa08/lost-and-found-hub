@@ -7,6 +7,10 @@ import '../screens/items/create_item_screen.dart';
 import '../screens/profile/profile_screen.dart';
 import '../screens/auth/login_screen.dart';
 
+/// **DesktopScaffold**
+/// Widget layout utama khusus untuk mode Desktop atau Tablet (layar lebar).
+/// Menampilkan Sidebar tetap di sisi kiri layar yang berisi menu navigasi utama,
+/// tombol 'Buat Laporan', profil, logout, dan ringkasan statistik (Stats Footer).
 class DesktopScaffold extends ConsumerStatefulWidget {
   final Widget body;
   final int currentIndex;

@@ -1,3 +1,4 @@
+import 'dart:async'; // Diperlukan untuk Timer (Debounce)
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -443,6 +444,10 @@ class _TipeToggle extends StatelessWidget {
 }
 
 // ── Search Page ───────────────────────────────────────────────────────────────
+/// **_SearchPage**
+/// Halaman pencarian utama untuk barang hilang/temuan.
+/// Saat ini menggunakan "Local Filtering", artinya aplikasi mengunduh semua data barang aktif dulu,
+/// lalu memfilternya di memori HP. Ini tidak membebani server, tapi bisa membebani HP jika data sangat besar.
 class _SearchPage extends ConsumerStatefulWidget {
   const _SearchPage();
   @override
@@ -451,10 +456,19 @@ class _SearchPage extends ConsumerStatefulWidget {
 
 class _SearchPageState extends ConsumerState<_SearchPage> {
   final _ctrl = TextEditingController();
+  
+  // Kata kunci pencarian
   String _query = '';
+  
+  // Timer Debounce: Mencegah filter berjalan terus-menerus saat user sedang mengetik dengan cepat.
+  Timer? _debounceTimer;
 
   @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+  void dispose() { 
+    _debounceTimer?.cancel(); // Cegah kebocoran memori (memory leak)
+    _ctrl.dispose(); 
+    super.dispose(); 
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -466,7 +480,13 @@ class _SearchPageState extends ConsumerState<_SearchPage> {
       appBar: AppBar(
         title: TextField(
           controller: _ctrl,
-          onChanged: (v) => setState(() => _query = v.toLowerCase()),
+          // Menerapkan fitur Debounce saat user mengetik
+          onChanged: (v) {
+            if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+            _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+              setState(() => _query = v.toLowerCase());
+            });
+          },
           decoration: InputDecoration(
             hintText: 'Cari barang...',
             border: InputBorder.none,

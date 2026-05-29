@@ -1,3 +1,13 @@
+# ==========================================
+# pubspec.yaml (Konfigurasi Proyek & Dependensi)
+# ==========================================
+# File ini memuat seluruh package eksternal yang dipakai dalam aplikasi.
+# Beberapa dependensi kunci:
+# - Firebase (Auth, Firestore) untuk Backend & Database
+# - Riverpod untuk State Management
+# - Cloudinary (via http) untuk Upload Media
+# - Google Maps & Geolocator untuk Lokasi
+# - Mobile Scanner & QR Flutter untuk scan/generate QR Code
 name: lost_found_hub
 description: Lost & Found Hub - Aplikasi temuan barang dengan sistem bounty dan guild.
 publish_to: 'none'

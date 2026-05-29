@@ -7,6 +7,10 @@ import '../../core/constants/firestore_paths.dart';
 import '../../providers/auth_provider.dart';
 import '../auth/login_screen.dart';
 
+/// **ProfileScreen (Layar Profil Pengguna)**
+/// Menampilkan informasi dasar pengguna (Nama, Username, No HP) 
+/// serta statistik akumulatif (Total Poin, Total Laporan, Success Rate).
+/// Pengguna juga bisa mengubah profil dan logout melalui layar ini.
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
