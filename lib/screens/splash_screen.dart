@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import './dashboard/dashboard_screen.dart';
 import './auth/login_screen.dart';
+import './onboarding/onboarding_screen.dart';
 import '../core/constants/app_colors.dart';
 
 /// **SplashScreen (Layar Pembuka)**
@@ -38,17 +40,29 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   /// **Fungsi _navigate**
-  /// Mengecek status autentikasi melalui Firebase Auth setelah animasi selesai.
-  /// Langsung mengalihkan ke Dashboard (jika login) atau LoginScreen (jika belum).
-  void _navigate() {
+  /// Mengecek status first-time via SharedPreferences.
+  /// Jika first-time, ke Onboarding.
+  /// Jika bukan, cek status login Firebase dan alihkan ke Dashboard/Login.
+  Future<void> _navigate() async {
     if (!mounted) return;
-    final user = FirebaseAuth.instance.currentUser;
+    
+    final prefs = await SharedPreferences.getInstance();
+    final isFirstTime = prefs.getBool('isFirstTime') ?? true;
+
+    if (!mounted) return;
+
+    Widget nextScreen;
+    if (isFirstTime) {
+      nextScreen = const OnboardingScreen();
+    } else {
+      final user = FirebaseAuth.instance.currentUser;
+      nextScreen = user != null ? const DashboardScreen() : const LoginScreen();
+    }
+
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) =>
-            user != null ? const DashboardScreen() : const LoginScreen(),
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
+        pageBuilder: (_, __, ___) => nextScreen,
+        transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
         transitionDuration: const Duration(milliseconds: 600),
       ),
     );

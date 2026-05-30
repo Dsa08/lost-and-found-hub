@@ -71,16 +71,13 @@ class _DesktopScaffoldState extends ConsumerState<DesktopScaffold> {
   Widget _buildSidebar(dynamic user, AsyncValue statsAsync) {
     return Container(
       width: 260,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: const Border(
-          right: BorderSide(color: AppColors.divider, width: 1),
-        ),
+      decoration: const BoxDecoration(
+        color: AppColors.sidebarDark,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
+            color: Colors.black26,
             blurRadius: 24,
-            offset: const Offset(2, 0),
+            offset: Offset(4, 0),
           ),
         ],
       ),
@@ -98,46 +95,52 @@ class _DesktopScaffoldState extends ConsumerState<DesktopScaffold> {
           // ── Nav Items ──
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               children: [
-                ..._navItems.asMap().entries.map((e) => _buildNavTile(e.key, e.value)),
+                ..._navItems.asMap().entries.map((e) => _HoverNavTile(
+                      index: e.key,
+                      entry: e.value,
+                      isActive: widget.currentIndex == e.key,
+                      onTap: () => widget.onNavTap(e.key),
+                    )),
 
                 const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Divider(height: 1, color: AppColors.divider),
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  child: Divider(height: 1, color: AppColors.sidebarSurface),
                 ),
 
                 // ── Buat Laporan Button ──
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: ElevatedButton.icon(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const CreateItemScreen()),
-                    ),
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text('Buat Laporan'),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 44),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const CreateItemScreen()),
+                  ),
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: const Text('Buat Laporan', style: TextStyle(fontWeight: FontWeight.w700)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(double.infinity, 44),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
 
                 // ── Profile ──
-                _buildActionTile(
+                _HoverActionTile(
                   icon: Icons.person_rounded,
-                  label: 'Profil',
-                  color: AppColors.textSecondary,
+                  label: 'Profil Saya',
+                  defaultColor: AppColors.sidebarText,
+                  hoverColor: AppColors.sidebarTextActive,
                   onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfileScreen())),
                 ),
 
                 // ── Logout ──
-                _buildActionTile(
+                _HoverActionTile(
                   icon: Icons.logout_rounded,
                   label: 'Logout',
-                  color: AppColors.error,
+                  defaultColor: AppColors.error,
+                  hoverColor: const Color(0xFFFF5252),
                   onTap: _logout,
                 ),
               ],
@@ -153,36 +156,39 @@ class _DesktopScaffoldState extends ConsumerState<DesktopScaffold> {
 
   Widget _buildLogoHeader() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.primary, Color(0xFF4A90E2)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        color: AppColors.sidebarDark,
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(10),
+              gradient: const LinearGradient(
+                colors: [AppColors.primary, Color(0xFF4A90E2)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(color: AppColors.primary.withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4)),
+              ],
             ),
-            child: const Icon(Icons.find_in_page_rounded, color: Colors.white, size: 22),
+            child: const Icon(Icons.find_in_page_rounded, color: Colors.white, size: 24),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Lost & Found',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15, height: 1.2),
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 16, height: 1.2),
                 ),
                 Text(
-                  'Hub',
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                  'Dashboard Workspace',
+                  style: TextStyle(color: AppColors.sidebarText, fontSize: 11),
                 ),
               ],
             ),
@@ -194,35 +200,40 @@ class _DesktopScaffoldState extends ConsumerState<DesktopScaffold> {
 
   Widget _buildUserInfo(dynamic user) {
     return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      color: AppColors.primaryLight,
+      decoration: BoxDecoration(
+        color: AppColors.glassWhite,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 20,
-            backgroundColor: AppColors.primary,
+            backgroundColor: AppColors.primaryDark,
             child: Text(
               user.nama[0].toUpperCase(),
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   user.nama,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: AppColors.textPrimary),
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.sidebarTextActive),
                   overflow: TextOverflow.ellipsis,
                 ),
                 Row(
                   children: [
                     const Icon(Icons.star_rounded, color: AppColors.bounty, size: 13),
-                    const SizedBox(width: 3),
+                    const SizedBox(width: 4),
                     Text(
                       '${user.totalPoin} poin',
-                      style: const TextStyle(fontSize: 11, color: AppColors.bounty, fontWeight: FontWeight.w600),
+                      style: const TextStyle(fontSize: 12, color: AppColors.bounty, fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -234,95 +245,130 @@ class _DesktopScaffoldState extends ConsumerState<DesktopScaffold> {
     );
   }
 
-  Widget _buildNavTile(int index, _NavEntry entry) {
-    final isActive = widget.currentIndex == index;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        decoration: BoxDecoration(
-          color: isActive ? AppColors.primaryLight : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: ListTile(
-          dense: true,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          title: Text(
-            entry.label,
-            style: TextStyle(
-              fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-              color: isActive ? AppColors.primary : AppColors.textPrimary,
-              fontSize: 14,
-            ),
-          ),
-          // Active indicator bar + icon on the left
-          leading: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                width: 3,
-                height: isActive ? 24 : 0,
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Icon(
-                isActive ? entry.activeIcon : entry.icon,
-                color: isActive ? AppColors.primary : AppColors.textSecondary,
-                size: 21,
-              ),
-            ],
-          ),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          onTap: () => widget.onNavTap(index),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionTile({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return ListTile(
-      dense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      leading: Icon(icon, color: color, size: 21),
-      title: Text(label, style: TextStyle(fontSize: 14, color: color, fontWeight: FontWeight.w500)),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      onTap: onTap,
-    );
-  }
-
   Widget _buildStatsFooter(AsyncValue statsAsync) {
     return statsAsync.when(
       data: (stats) => Container(
-        margin: const EdgeInsets.all(12),
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        margin: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         decoration: BoxDecoration(
-          color: AppColors.background,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.divider),
+          color: AppColors.sidebarSurface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _SidebarStat(label: 'Item', value: '${stats.totalBarang}'),
-            Container(width: 1, height: 28, color: AppColors.divider),
+            Container(width: 1, height: 32, color: AppColors.sidebarText.withValues(alpha: 0.2)),
             _SidebarStat(label: 'Selesai', value: '${stats.totalSelesai}'),
-            Container(width: 1, height: 28, color: AppColors.divider),
+            Container(width: 1, height: 32, color: AppColors.sidebarText.withValues(alpha: 0.2)),
             _SidebarStat(label: 'Guild', value: '${stats.totalGuild}'),
           ],
         ),
       ),
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
+
+// ── Hover Components ──────────────────────────────────────────────────────
+
+class _HoverNavTile extends StatefulWidget {
+  final int index;
+  final _NavEntry entry;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _HoverNavTile({required this.index, required this.entry, required this.isActive, required this.onTap});
+
+  @override
+  State<_HoverNavTile> createState() => _HoverNavTileState();
+}
+
+class _HoverNavTileState extends State<_HoverNavTile> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final showHighlight = widget.isActive || _isHovered;
+    final color = showHighlight ? AppColors.sidebarTextActive : AppColors.sidebarText;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          margin: const EdgeInsets.only(bottom: 6),
+          decoration: BoxDecoration(
+            color: widget.isActive ? AppColors.primary.withValues(alpha: 0.15) : (_isHovered ? AppColors.glassWhite : Colors.transparent),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: ListTile(
+            dense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            title: Text(
+              widget.entry.label,
+              style: TextStyle(
+                fontWeight: widget.isActive ? FontWeight.w700 : FontWeight.w500,
+                color: color,
+                fontSize: 14,
+              ),
+            ),
+            leading: Icon(
+              widget.isActive ? widget.entry.activeIcon : widget.entry.icon,
+              color: widget.isActive ? AppColors.primary : color,
+              size: 20,
+            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HoverActionTile extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final Color defaultColor;
+  final Color hoverColor;
+  final VoidCallback onTap;
+
+  const _HoverActionTile({required this.icon, required this.label, required this.defaultColor, required this.hoverColor, required this.onTap});
+
+  @override
+  State<_HoverActionTile> createState() => _HoverActionTileState();
+}
+
+class _HoverActionTileState extends State<_HoverActionTile> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(bottom: 4),
+        decoration: BoxDecoration(
+          color: _isHovered ? AppColors.glassWhite : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: ListTile(
+          dense: true,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+          leading: Icon(widget.icon, color: _isHovered ? widget.hoverColor : widget.defaultColor, size: 20),
+          title: Text(widget.label, style: TextStyle(fontSize: 14, color: _isHovered ? widget.hoverColor : widget.defaultColor, fontWeight: FontWeight.w500)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          onTap: widget.onTap,
+        ),
+      ),
     );
   }
 }
@@ -342,9 +388,9 @@ class _SidebarStat extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
     children: [
-      Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primary)),
-      const SizedBox(height: 2),
-      Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textHint)),
+      Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white)),
+      const SizedBox(height: 4),
+      Text(label, style: const TextStyle(fontSize: 11, color: AppColors.sidebarText)),
     ],
   );
 }

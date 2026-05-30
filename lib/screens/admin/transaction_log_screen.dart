@@ -5,8 +5,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../../providers/admin_provider.dart';
 
 /// **TransactionLogScreen (Log Transaksi Bounty / Poin)**
-/// Layar ini menampilkan riwayat aliran poin di sistem (Sistem Escrow).
-/// Sistem Escrow adalah penengah: Saat user A buat sayembara, poinnya 'dikunci' (Lock) oleh sistem.
+/// Layar ini menampilkan riwayat aliran poin di sistem.
+/// Sistem Penitipan Poin (Escrow) adalah penengah: Saat user A buat sayembara, poinnya 'dikunci' (Lock) oleh sistem.
 /// Nanti jika selesai, poin dicairkan ke penemu (Release) atau dikembalikan jika gagal (Refund).
 class TransactionLogScreen extends ConsumerStatefulWidget {
   const TransactionLogScreen({super.key});

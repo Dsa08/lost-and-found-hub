@@ -9,29 +9,43 @@ import 'bounty_badge.dart';
 /// Komponen reusable yang menampilkan ringkasan informasi barang dalam bentuk kartu.
 /// Memuat foto thumbnail (via CachedNetworkImage), judul, deskripsi singkat, 
 /// serta badge kategori dan bounty.
-class ItemCard extends StatelessWidget {
+class ItemCard extends StatefulWidget {
   final ItemModel item;
   final VoidCallback onTap;
 
   const ItemCard({super.key, required this.item, required this.onTap});
 
   @override
+  State<ItemCard> createState() => _ItemCardState();
+}
+
+class _ItemCardState extends State<ItemCard> {
+  bool _isHovered = false;
+
+  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          transform: Matrix4.diagonal3Values(_isHovered ? 1.02 : 1.0, _isHovered ? 1.02 : 1.0, 1.0),
+          transformAlignment: Alignment.center,
+          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: _isHovered ? 0.12 : 0.06),
+                blurRadius: _isHovered ? 16 : 10,
+                offset: Offset(0, _isHovered ? 6 : 3),
+              ),
+            ],
+          ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -40,9 +54,9 @@ class ItemCard extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: Stack(
                 children: [
-                  item.fotoUrls.isNotEmpty
+                  widget.item.fotoUrls.isNotEmpty
                       ? CachedNetworkImage(
-                          imageUrl: item.fotoUrls.first,
+                          imageUrl: widget.item.fotoUrls.first,
                           height: 160,
                           width: double.infinity,
                           fit: BoxFit.cover,
@@ -62,16 +76,16 @@ class ItemCard extends StatelessWidget {
                     top: 10,
                     left: 10,
                     child: StatusBadge(
-                      status: item.tipeLaporan == TipeLaporan.lost ? 'lost' : 'found',
+                      status: widget.item.tipeLaporan == TipeLaporan.lost ? 'lost' : 'found',
                     ),
                   ),
 
                   // Bounty badge (kanan atas)
-                  if (item.hasBounty)
+                  if (widget.item.hasBounty)
                     Positioned(
                       top: 10,
                       right: 10,
-                      child: BountyBadge(poin: item.nominalBounty),
+                      child: BountyBadge(poin: widget.item.nominalBounty),
                     ),
                 ],
               ),
@@ -88,7 +102,7 @@ class ItemCard extends StatelessWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          item.judul,
+                          widget.item.judul,
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
@@ -99,7 +113,7 @@ class ItemCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      _KategoriBadge(item.kategori),
+                      _KategoriBadge(widget.item.kategori),
                     ],
                   ),
 
@@ -107,7 +121,7 @@ class ItemCard extends StatelessWidget {
 
                   // Deskripsi
                   Text(
-                    item.deskripsi,
+                    widget.item.deskripsi,
                     style: const TextStyle(
                       fontSize: 13,
                       color: AppColors.textSecondary,
@@ -126,13 +140,13 @@ class ItemCard extends StatelessWidget {
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          item.lokasi.namaLokasi,
+                          widget.item.lokasi.namaLokasi,
                           style: const TextStyle(fontSize: 12, color: AppColors.textHint),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Text(
-                        timeago.format(item.createdAt, locale: 'id'),
+                        timeago.format(widget.item.createdAt, locale: 'id'),
                         style: const TextStyle(fontSize: 12, color: AppColors.textHint),
                       ),
                     ],
@@ -143,7 +157,7 @@ class ItemCard extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _placeholderImage() {
@@ -155,7 +169,7 @@ class ItemCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(
-            item.tipeLaporan == TipeLaporan.lost
+            widget.item.tipeLaporan == TipeLaporan.lost
                 ? Icons.search_off_rounded
                 : Icons.inventory_2_outlined,
             size: 40,

@@ -302,15 +302,15 @@ class _HomePage extends ConsumerWidget {
                 }
 
                 if (isDesktop) {
-                  // Desktop: 2-column grid
+                  // Desktop: Responsive Grid (3-4 kolom berdasarkan lebar layar)
                   return SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     sliver: SliverGrid(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 2.6,
+                      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                        maxCrossAxisExtent: 400,
+                        crossAxisSpacing: 16,
+                        mainAxisSpacing: 16,
+                        childAspectRatio: 2.3, // Menyesuaikan proporsi dengan lebar max 400
                       ),
                       delegate: SliverChildBuilderDelegate(
                         (ctx, i) => ItemCard(
@@ -357,58 +357,113 @@ class _StatsBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(appStatsProvider);
+    final isDesktop = MediaQuery.of(context).size.width >= 600;
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, Color(0xFF4A90E2)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
+    return statsAsync.when(
+      data: (stats) {
+        final cards = [
+          _FloatingStatCard(
+            label: 'Barang Dilaporkan', value: '${stats.totalBarang}', icon: Icons.list_alt_rounded,
+            gradient: const LinearGradient(colors: [Color(0xFF1A73E8), Color(0xFF0D47A1)]),
+            shadowColor: AppColors.primary,
+            isDesktop: isDesktop,
+          ),
+          _FloatingStatCard(
+            label: 'Berhasil Diselesaikan', value: '${stats.totalSelesai}', icon: Icons.check_circle_outline_rounded,
+            gradient: const LinearGradient(colors: [AppColors.statusActive, Color(0xFF1B5E20)]),
+            shadowColor: AppColors.statusActive,
+            isDesktop: isDesktop,
+          ),
+          _FloatingStatCard(
+            label: 'Guild Aktif', value: '${stats.totalGuild}', icon: Icons.shield_rounded,
+            gradient: const LinearGradient(colors: [AppColors.guildGold, Color(0xFFE65100)]),
+            shadowColor: AppColors.guildGold,
+            isDesktop: isDesktop,
+          ),
+        ];
+
+        if (isDesktop) {
+          return Row(
+            children: [
+              Expanded(child: cards[0]),
+              const SizedBox(width: 16),
+              Expanded(child: cards[1]),
+              const SizedBox(width: 16),
+              Expanded(child: cards[2]),
+            ],
+          );
+        }
+
+        // Mobile Layout: Horizontal Scroll
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              cards[0],
+              const SizedBox(width: 12),
+              cards[1],
+              const SizedBox(width: 12),
+              cards[2],
+            ],
+          ),
+        );
+      },
+      loading: () => const Center(
+        child: SizedBox(height: 100, child: Center(child: CircularProgressIndicator(color: AppColors.primary))),
       ),
-      child: statsAsync.when(
-        data: (stats) => Row(
-          children: [
-            Expanded(child: _StatItem(label: 'Barang\nDilaporkan', value: '${stats.totalBarang}', icon: Icons.list_alt_rounded)),
-            Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
-            Expanded(child: _StatItem(label: 'Berhasil\nDiselesaikan', value: '${stats.totalSelesai}', icon: Icons.check_circle_outline_rounded)),
-            Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
-            Expanded(child: _StatItem(label: 'Guild\nAktif', value: '${stats.totalGuild}', icon: Icons.shield_rounded)),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
+
+class _FloatingStatCard extends StatefulWidget {
+  final String label, value;
+  final IconData icon;
+  final Gradient gradient;
+  final Color shadowColor;
+  final bool isDesktop;
+  const _FloatingStatCard({required this.label, required this.value, required this.icon, required this.gradient, required this.shadowColor, this.isDesktop = true});
+
+  @override
+  State<_FloatingStatCard> createState() => _FloatingStatCardState();
+}
+
+class _FloatingStatCardState extends State<_FloatingStatCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        width: widget.isDesktop ? null : 150,
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        transform: Matrix4.translationValues(0.0, _isHovered ? -4.0 : 0.0, 0.0),
+        decoration: BoxDecoration(
+          gradient: widget.gradient,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: widget.shadowColor.withValues(alpha: _isHovered ? 0.4 : 0.2),
+              blurRadius: _isHovered ? 20 : 12,
+              offset: Offset(0, _isHovered ? 10 : 4),
+            ),
           ],
         ),
-        loading: () => const Center(
-          child: SizedBox(height: 40, child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2)),
-        ),
-        error: (_, __) => Row(
+        child: Column(
           children: [
-            const Expanded(child: _StatItem(label: 'Barang\nDilaporkan', value: '-', icon: Icons.list_alt_rounded)),
-            Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
-            const Expanded(child: _StatItem(label: 'Berhasil\nDiselesaikan', value: '-', icon: Icons.check_circle_outline_rounded)),
-            Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
-            const Expanded(child: _StatItem(label: 'Guild\nAktif', value: '-', icon: Icons.shield_rounded)),
+            Icon(widget.icon, color: Colors.white.withValues(alpha: 0.9), size: 28),
+            const SizedBox(height: 8),
+            Text(widget.value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 24)),
+            const SizedBox(height: 2),
+            Text(widget.label, style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 12), textAlign: TextAlign.center),
           ],
         ),
       ),
     );
   }
-}
-
-class _StatItem extends StatelessWidget {
-  final String label, value;
-  final IconData icon;
-  const _StatItem({required this.label, required this.value, required this.icon});
-
-  @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      Icon(icon, color: Colors.white70, size: 20),
-      const SizedBox(height: 4),
-      Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 20)),
-      Text(label, style: const TextStyle(color: Colors.white70, fontSize: 10), textAlign: TextAlign.center),
-    ],
-  );
 }
 
 class _TipeToggle extends StatelessWidget {

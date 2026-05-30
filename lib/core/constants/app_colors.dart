@@ -11,6 +11,16 @@ class AppColors {
   static const Color primaryDark = Color(0xFF0D47A1);
   static const Color primaryLight = Color(0xFFE8F0FE);
 
+  // Desktop Sidebar (SaaS Dark Mode)
+  static const Color sidebarDark = Color(0xFF0B0F19);   // Midnight Blue / Sangat Gelap
+  static const Color sidebarSurface = Color(0xFF151B2B); // Sedikit lebih terang untuk card di sidebar
+  static const Color sidebarActive = Color(0xFF1E40AF);  // Soft glow blue untuk hover
+  static const Color sidebarText = Color(0xFF94A3B8);    // Slate 400
+  static const Color sidebarTextActive = Color(0xFFFFFFFF); // Putih bersih
+
+  // Hover Effect (Glassmorphism)
+  static const Color glassWhite = Color(0x1AFFFFFF); // Putih transparan 10%
+
   // Bounty / Gold Accent
   static const Color bounty = Color(0xFFFFB300);         // Amber — untuk bounty/poin
   static const Color bountyLight = Color(0xFFFFF8E1);

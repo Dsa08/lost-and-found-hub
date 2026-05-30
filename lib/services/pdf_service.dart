@@ -101,7 +101,7 @@ class PdfService {
               if (item.nominalBounty > 0)
                 _buildSection('Informasi Bounty', [
                   _buildRow('Nominal Bounty', '${item.nominalBounty} Poin'),
-                  _buildRow('Status Escrow', 'Released ✓'),
+                  _buildRow('Status Jaminan Poin', 'Dicairkan ✓'),
                 ]),
 
               pw.SizedBox(height: 16),

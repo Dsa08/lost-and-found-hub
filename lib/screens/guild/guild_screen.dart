@@ -143,6 +143,12 @@ class _GuildScreenState extends ConsumerState<GuildScreen> {
             );
           }
 
+          final isDesktop = MediaQuery.of(context).size.width >= 800;
+
+          if (isDesktop) {
+            return _buildDesktopLayout(guilds, user?.guildId);
+          }
+
           return Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 800),
@@ -190,6 +196,76 @@ class _GuildScreenState extends ConsumerState<GuildScreen> {
         },
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
         error: (e, _) => Center(child: Text('$e')),
+      ),
+    );
+  }
+
+  Widget _buildDesktopLayout(List<GuildModel> guilds, String? currentGuildId) {
+    final top3 = guilds.take(3).toList();
+    final rest = guilds.skip(3).toList();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Banner Desktop
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [AppColors.guildGold, AppColors.bounty], begin: Alignment.topLeft, end: Alignment.bottomRight),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 48),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Guild Leaderboard', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 24)),
+                    Text('Top ${guilds.length} Guild Terkuat di Lost & Found Hub', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 32),
+
+          // Podium Top 3
+          if (top3.isNotEmpty) ...[
+            const Center(child: Text('🏆 TOP 3 GUILDS 🏆', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.textPrimary))),
+            const SizedBox(height: 24),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (top3.length >= 2) Expanded(child: _PodiumCard(guild: top3[1], rank: 2, height: 160)),
+                if (top3.length >= 2) const SizedBox(width: 16),
+                if (top3.isNotEmpty) Expanded(child: _PodiumCard(guild: top3[0], rank: 1, height: 200)),
+                if (top3.length >= 3) const SizedBox(width: 16),
+                if (top3.length >= 3) Expanded(child: _PodiumCard(guild: top3[2], rank: 3, height: 140)),
+              ],
+            ),
+            const SizedBox(height: 32),
+          ],
+
+          // Sisanya
+          if (rest.isNotEmpty) ...[
+            const Text('Peringkat Lainnya', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: rest.asMap().entries.map((e) {
+                return SizedBox(
+                  width: 350,
+                  child: _GuildCard(guild: e.value, rank: e.key + 4, currentGuildId: currentGuildId),
+                );
+              }).toList(),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -286,6 +362,52 @@ class _GuildCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PodiumCard extends StatelessWidget {
+  final GuildModel guild;
+  final int rank;
+  final double height;
+
+  const _PodiumCard({required this.guild, required this.rank, required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = [
+      AppColors.guildGold, // 1
+      AppColors.guildSilver, // 2
+      AppColors.guildBronze, // 3
+    ];
+    final color = colors[rank - 1];
+
+    return Container(
+      height: height,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(16), bottom: Radius.circular(8)),
+        border: Border(top: BorderSide(color: color, width: 6)),
+        boxShadow: [BoxShadow(color: color.withValues(alpha: 0.15), blurRadius: 16, offset: const Offset(0, -4))],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Text(rank == 1 ? '🥇' : rank == 2 ? '🥈' : '🥉', style: const TextStyle(fontSize: 32)),
+          const SizedBox(height: 8),
+          Text(guild.namaGuild, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.star_rounded, size: 14, color: AppColors.bounty),
+              const SizedBox(width: 4),
+              Text('${guild.totalReputasi} rep', style: const TextStyle(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ],
       ),
     );
   }
