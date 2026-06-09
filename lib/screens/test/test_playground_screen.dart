@@ -1281,7 +1281,7 @@ class _VideoPlayerTab extends StatefulWidget {
 class _VideoPlayerTabState extends State<_VideoPlayerTab>
     with AutomaticKeepAliveClientMixin {
   final _urlCtrl = TextEditingController(
-    text: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    text: 'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
   );
 
   @override
@@ -1344,18 +1344,13 @@ class _VideoPlayerTabState extends State<_VideoPlayerTab>
                         style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.textSecondary)),
                     const SizedBox(height: 8),
                     _SampleVideoBtn(
-                      title: '🐰 Big Buck Bunny',
-                      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+                      title: '🐝 Lebah (Flutter Sample)',
+                      url: 'https://flutter.github.io/assets-for-api-docs/assets/videos/bee.mp4',
                       onTap: (url) => setState(() => _urlCtrl.text = url),
                     ),
                     _SampleVideoBtn(
-                      title: '🐘 Elephant Dream',
-                      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-                      onTap: (url) => setState(() => _urlCtrl.text = url),
-                    ),
-                    _SampleVideoBtn(
-                      title: '🎬 Sintel Trailer',
-                      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+                      title: '🦋 Kupu-kupu (Flutter Sample)',
+                      url: 'https://flutter.github.io/assets-for-api-docs/assets/videos/butterfly.mp4',
                       onTap: (url) => setState(() => _urlCtrl.text = url),
                     ),
                   ],
