@@ -16,6 +16,7 @@ import '../items/my_items_screen.dart';
 import '../wallet/wallet_screen.dart';
 import '../guild/guild_screen.dart';
 import '../profile/profile_screen.dart';
+import '../test/test_playground_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -161,6 +162,26 @@ class _HomePage extends ConsumerWidget {
                           ],
                         ),
                       ),
+                    const SizedBox(width: 8),
+                    // Tombol Test Playground
+                    GestureDetector(
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const TestPlaygroundScreen())),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(colors: [Color(0xFF6C63FF), Color(0xFF8B5CF6)]),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.science_rounded, color: Colors.white, size: 20),
+                      ),
+                    ),
                     const SizedBox(width: 8),
                     // Avatar → tap buka ProfileScreen
                     GestureDetector(
